@@ -265,10 +265,12 @@ app.post(
       });
     }
 
+    // Supported destinations: TikTok, Instagram, Facebook and YouTube.
     const allowedPlatforms = [
       "tiktok",
       "instagram",
-      "facebook"
+      "facebook",
+      "youtube"
     ];
 
     if (
@@ -280,7 +282,7 @@ app.post(
       new Set(target_platforms).size !== target_platforms.length
     ) {
       return res.status(400).json({
-        error: "Choose one or more supported platforms: tiktok, instagram, facebook."
+        error: "Choose one or more supported platforms: tiktok, instagram, facebook, youtube."
       });
     }
 
@@ -441,4 +443,4 @@ app.get(
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`ClipForge AI running on port ${PORT}`);
 });
-      
+                                
