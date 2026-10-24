@@ -1,21 +1,43 @@
 
-{
-  "name": "clipforge-ai",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Automated AI video clipping and publishing platform",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
-  },
-  "engines": {
-    "node": ">=20"
-  },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.57.0",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2"
-  }
-}
+require("dotenv").config();
+
+const express = require("express");
+const cors = require("cors");
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json({ limit: "1mb" }));
+
+app.get("/", (req, res) => {
+  res.json({
+    name: "ClipForge AI",
+    status: "online",
+    message: "Your AI clipping platform backend is running.",
+    version: "1.0.0"
+  });
+});
+
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "healthy",
+    service: "ClipForge AI API",
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get("/api", (req, res) => {
+  res.json({
+    name: "ClipForge AI API",
+    endpoints: [
+      "GET /",
+      "GET /api/health",
+      "GET /api"
+    ]
+  });
+});
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`ClipForge AI running on port ${PORT}`);
+});
