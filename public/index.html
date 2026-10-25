@@ -1,0 +1,622 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090d18">
+  <meta name="description" content="ClipForge AI — discover content and prepare better short-form videos.">
+  <title>ClipForge AI | Content Studio</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090d18;
+      --panel: #111827;
+      --panel2: #172033;
+      --line: #263247;
+      --text: #f4f7fb;
+      --muted: #94a3b8;
+      --accent: #8b5cf6;
+      --accent2: #6d42e8;
+      --green: #34d399;
+      --red: #f87171;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+    }
+
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+
+    .app { min-height: 100vh; }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 5%;
+      border-bottom: 1px solid var(--line);
+      background: #0c1220;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    .brand { display: flex; align-items: center; gap: 11px; }
+    .logo {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border-radius: 13px;
+      background: linear-gradient(135deg, #a78bfa, #6d28d9);
+      font-size: 21px;
+      font-weight: 900;
+    }
+
+    .brand-name { font-size: 17px; font-weight: 800; letter-spacing: -.5px; }
+    .brand-name span { color: #a78bfa; }
+    .brand-sub { color: var(--muted); font-size: 11px; margin-top: 3px; }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: #a7f3d0;
+      font-size: 12px;
+      background: #10291f;
+      border: 1px solid #1b4935;
+      padding: 8px 11px;
+      border-radius: 30px;
+      white-space: nowrap;
+    }
+
+    .dot {
+      height: 7px;
+      width: 7px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    main { max-width: 1200px; margin: auto; padding: 34px 5% 60px; }
+
+    .eyebrow {
+      color: #a78bfa;
+      font-weight: 800;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 2px;
+    }
+
+    h1 { font-size: clamp(28px, 5vw, 43px); letter-spacing: -1.5px; margin: 10px 0; }
+    .intro { color: var(--muted); line-height: 1.7; max-width: 610px; margin: 0; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: 26px 0 30px;
+    }
+
+    .stat {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      padding: 17px;
+      border-radius: 15px;
+      min-width: 0;
+    }
+
+    .stat-label { color: var(--muted); font-size: 12px; }
+    .stat-value { font-size: 24px; font-weight: 800; margin-top: 8px; overflow-wrap: anywhere; }
+    .stat-note { color: var(--muted); font-size: 11px; margin-top: 5px; }
+
+    .section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 15px;
+    }
+
+    h2 { font-size: 18px; margin: 0; letter-spacing: -.3px; }
+    .muted { color: var(--muted); }
+    .filters {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 155px 155px auto;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    input, select {
+      width: 100%;
+      min-width: 0;
+      padding: 12px;
+      color: var(--text);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      outline: none;
+    }
+
+    input:focus, select:focus { border-color: var(--accent); }
+
+    .btn {
+      border: 1px solid var(--line);
+      background: var(--panel2);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 11px 15px;
+      font-weight: 700;
+      transition: .15s;
+    }
+
+    .btn:hover { border-color: #8b5cf6; }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent2); }
+    .btn:disabled { opacity: .55; cursor: wait; }
+
+    .filter-note { color: var(--muted); font-size: 12px; line-height: 1.6; margin-bottom: 22px; }
+
+    .message {
+      display: none;
+      margin: 16px 0;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+      color: var(--muted);
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+
+    .message.show { display: block; }
+    .message.error { color: #fecaca; border-color: #7f1d1d; }
+    .message.success { color: #a7f3d0; border-color: #166534; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 17px;
+    }
+
+    .video-card {
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .thumbnail {
+      position: relative;
+      display: block;
+      background: #202a3b;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+    }
+
+    .thumbnail img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .duration {
+      position: absolute;
+      bottom: 9px;
+      right: 9px;
+      padding: 4px 6px;
+      background: #000c;
+      border-radius: 5px;
+      font-size: 11px;
+    }
+
+    .play {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-size: 37px;
+      color: white;
+      opacity: .88;
+      text-shadow: 0 2px 12px #000;
+    }
+
+    .video-info { padding: 14px; display: flex; flex-direction: column; flex: 1; }
+    .video-title {
+      color: var(--text);
+      font-weight: 750;
+      line-height: 1.5;
+      font-size: 13px;
+      text-decoration: none;
+      overflow-wrap: anywhere;
+    }
+    .video-title:hover { color: #c4b5fd; }
+    .video-meta { color: var(--muted); font-size: 11px; margin: 10px 0 14px; }
+    .card-actions { display: flex; gap: 8px; margin-top: auto; }
+    .card-actions a { flex: 1; text-align: center; text-decoration: none; }
+    .card-actions .btn { padding: 10px 8px; font-size: 12px; }
+
+    .empty {
+      padding: 40px 20px;
+      text-align: center;
+      border: 1px dashed var(--line);
+      border-radius: 15px;
+      color: var(--muted);
+      line-height: 1.8;
+      grid-column: 1 / -1;
+    }
+
+    .empty-icon { font-size: 32px; margin-bottom: 8px; }
+    .footer { border-top: 1px solid var(--line); padding: 20px 5%; color: var(--muted); font-size: 11px; text-align: center; line-height: 1.7; }
+
+    @media (max-width: 850px) {
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .filters { grid-template-columns: 1fr 1fr; }
+      .filters input { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 520px) {
+      header { padding: 13px 4%; }
+      .brand-name { font-size: 15px; }
+      .brand-sub { font-size: 10px; }
+      .status { font-size: 10px; padding: 7px 9px; }
+      main { padding: 27px 4% 45px; }
+      .stats { gap: 8px; }
+      .stat { padding: 12px 10px; }
+      .stat-value { font-size: 20px; }
+      .stat-label { font-size: 10px; }
+      .grid { grid-template-columns: 1fr; }
+      .filters { grid-template-columns: 1fr 1fr; }
+      .filters .btn { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="logo">C</div>
+      <div>
+        <div class="brand-name">ClipForge <span>AI</span></div>
+        <div class="brand-sub">YOUR CONTENT STUDIO</div>
+      </div>
+    </div>
+    <div class="status"><span class="dot"></span><span id="connectionStatus">Connecting...</span></div>
+  </header>
+
+  <main>
+    <div class="eyebrow">Discover · Create · Grow</div>
+    <h1>Your next great clip starts here.</h1>
+    <p class="intro">Discover videos worth exploring. Find inspiration, inspect source material, and build your future short-form content workflow from one studio.</p>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-label">Videos found</div>
+        <div class="stat-value" id="videoCount">—</div>
+        <div class="stat-note">Current search results</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Source platform</div>
+        <div class="stat-value">YouTube</div>
+        <div class="stat-note">Discovery integration</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Workflow stage</div>
+        <div class="stat-value" style="font-size:18px">Discovery</div>
+        <div class="stat-note">Clipping comes next</div>
+      </div>
+    </div>
+
+    <section>
+      <div class="section-heading">
+        <h2>Discover content</h2>
+        <span class="muted" id="resultLabel">Ready to search</span>
+      </div>
+
+      <form id="searchForm">
+        <div class="filters">
+          <input id="topic" type="search" maxlength="150" placeholder="Search football, podcasts, interviews..." value="football" required>
+          <select id="sortBy" aria-label="Sort results">
+            <option value="popular">Popular</option>
+            <option value="recent">Recent</option>
+            <option value="relevance">Relevance</option>
+          </select>
+          <select id="uploadDate" aria-label="Upload date">
+            <option value="this_week">This week</option>
+            <option value="today">Today</option>
+            <option value="this_month">This month</option>
+            <option value="this_year">This year</option>
+            <option value="all">Any time</option>
+          </select>
+          <button class="btn btn-primary" id="searchButton" type="submit">Search videos</button>
+        </div>
+      </form>
+      <div class="filter-note">Search results open on YouTube. Discovery finds source videos; it does not automatically download or create clips. Only repurpose footage you own or are authorized to use.</div>
+      <div id="message" class="message" role="status" aria-live="polite"></div>
+      <div class="grid" id="videoGrid">
+        <div class="empty"><div class="empty-icon">⌕</div>Search for content to discover videos.</div>
+      </div>
+      <div style="display:flex;justify-content:center;margin-top:22px">
+        <button class="btn" id="moreButton" type="button" hidden>Load more results</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    ClipForge AI · Content discovery workspace<br>
+    AI-assisted clipping and publishing features are still under development.
+  </footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const API_BASE = window.location.origin;
+  const grid = document.getElementById("videoGrid");
+  const message = document.getElementById("message");
+  const searchButton = document.getElementById("searchButton");
+  const moreButton = document.getElementById("moreButton");
+  const connectionStatus = document.getElementById("connectionStatus");
+  const videoCount = document.getElementById("videoCount");
+  const resultLabel = document.getElementById("resultLabel");
+
+  let continuationToken = null;
+  let totalShown = 0;
+  let currentSearchId = 0;
+
+  function showMessage(text, type = "") {
+    message.textContent = text;
+    message.className = "message show" + (type ? " " + type : "");
+  }
+
+  function clearMessage() {
+    message.textContent = "";
+    message.className = "message";
+  }
+
+  function safeYouTubeUrl(raw) {
+    try {
+      const url = new URL(raw);
+      if (url.protocol !== "https:") return null;
+      if (url.hostname !== "youtube.com" &&
+          url.hostname !== "www.youtube.com" &&
+          url.hostname !== "m.youtube.com" &&
+          url.hostname !== "youtu.be" &&
+          url.hostname !== "www.youtube-nocookie.com") return null;
+      return url.href;
+    } catch {
+      return null;
+    }
+  }
+
+  function formatDuration(value) {
+    if (value === null || value === undefined || value === "") return "";
+    if (typeof value === "number" && Number.isFinite(value)) {
+      const seconds = Math.max(0, Math.floor(value));
+      const mins = Math.floor(seconds / 60);
+      return mins + ":" + String(seconds % 60).padStart(2, "0");
+    }
+    return String(value).slice(0, 20);
+  }
+
+  function createCard(video) {
+    const url = safeYouTubeUrl(video.url);
+    if (!url) return null;
+
+    const card = document.createElement("article");
+    card.className = "video-card";
+
+    const thumbLink = document.createElement("a");
+    thumbLink.className = "thumbnail";
+    thumbLink.href = url;
+    thumbLink.target = "_blank";
+    thumbLink.rel = "noopener noreferrer";
+    thumbLink.setAttribute("aria-label", "Open video on YouTube");
+
+    const img = document.createElement("img");
+    const thumbnail = typeof video.thumbnail === "string" ? video.thumbnail : "";
+    try {
+      const parsed = new URL(thumbnail);
+      if (parsed.protocol === "https:" &&
+          (parsed.hostname === "i.ytimg.com" ||
+           parsed.hostname.endsWith(".ytimg.com") ||
+           parsed.hostname === "img.youtube.com")) {
+        img.src = parsed.href;
+      } else {
+        img.alt = "Video thumbnail unavailable";
+      }
+    } catch {
+      img.alt = "Video thumbnail unavailable";
+    }
+    img.alt = "Thumbnail for " + (video.title || "YouTube video");
+    img.loading = "lazy";
+    img.referrerPolicy = "no-referrer";
+    thumbLink.appendChild(img);
+
+    const play = document.createElement("span");
+    play.className = "play";
+    play.textContent = "▶";
+    play.setAttribute("aria-hidden", "true");
+    thumbLink.appendChild(play);
+
+    const duration = formatDuration(video.duration);
+    if (duration) {
+      const badge = document.createElement("span");
+      badge.className = "duration";
+      badge.textContent = duration;
+      thumbLink.appendChild(badge);
+    }
+
+    const info = document.createElement("div");
+    info.className = "video-info";
+
+    const title = document.createElement("a");
+    title.className = "video-title";
+    title.href = url;
+    title.target = "_blank";
+    title.rel = "noopener noreferrer";
+    title.textContent = video.title || "Untitled video";
+
+    const meta = document.createElement("div");
+    meta.className = "video-meta";
+    const parts = [];
+    if (video.channel) parts.push(String(video.channel));
+    if (video.views !== null && video.views !== undefined) {
+      parts.push(String(video.views) + " views");
+    }
+    if (video.published) {
+      const date = new Date(video.published);
+      if (!Number.isNaN(date.getTime())) {
+        parts.push(date.toLocaleDateString());
+      }
+    }
+    meta.textContent = parts.join(" · ") || "YouTube source";
+
+    const actions = document.createElement("div");
+    actions.className = "card-actions";
+
+    const openLink = document.createElement("a");
+    openLink.className = "btn btn-primary";
+    openLink.href = url;
+    openLink.target = "_blank";
+    openLink.rel = "noopener noreferrer";
+    openLink.textContent = "Watch on YouTube";
+
+    actions.appendChild(openLink);
+    info.append(title, meta, actions);
+    card.append(thumbLink, info);
+    return card;
+  }
+
+  function renderVideos(videos, append = false) {
+    if (!append) grid.replaceChildren();
+
+    let added = 0;
+    for (const video of videos) {
+      const card = createCard(video);
+      if (card) {
+        grid.appendChild(card);
+        added++;
+      }
+    }
+
+    if (!append && added === 0) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "No displayable videos were returned. Try another search.";
+      grid.appendChild(empty);
+    }
+
+    totalShown = append ? totalShown + added : added;
+    videoCount.textContent = String(totalShown);
+    resultLabel.textContent = totalShown + (totalShown === 1 ? " video" : " videos");
+  }
+
+  async function checkConnection() {
+    try {
+      const response = await fetch(API_BASE + "/api/health");
+      if (!response.ok) throw new Error("Health check failed");
+      const data = await response.json();
+      connectionStatus.textContent =
+        data.status === "healthy" ? "Backend connected" : "Backend responding";
+    } catch {
+      connectionStatus.textContent = "Connection unavailable";
+    }
+  }
+
+  async function searchVideos(append = false) {
+    const topic = document.getElementById("topic").value.trim();
+    if (!topic) {
+      showMessage("Enter a topic before searching.", "error");
+      return;
+    }
+
+    const searchId = append ? currentSearchId : ++currentSearchId;
+    const params = new URLSearchParams({
+      topic,
+      sortBy: document.getElementById("sortBy").value,
+      uploadDate: document.getElementById("uploadDate").value,
+      type: "videos",
+      region: "NG"
+    });
+
+    if (append && continuationToken) {
+      params.set("continuationToken", continuationToken);
+    }
+
+    searchButton.disabled = true;
+    moreButton.disabled = true;
+    if (!append) {
+      continuationToken = null;
+      totalShown = 0;
+      videoCount.textContent = "…";
+      grid.replaceChildren();
+    }
+    clearMessage();
+    showMessage(append ? "Loading more videos…" : "Searching YouTube…");
+
+    try {
+      const response = await fetch(API_BASE + "/api/discover?" + params.toString(), {
+        method: "GET",
+        headers: { "Accept": "application/json" },
+        cache: "no-store"
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || data.message || "Search failed (" + response.status + ").");
+      }
+      if (searchId !== currentSearchId) return;
+
+      const videos = Array.isArray(data.results) ? data.results : [];
+      continuationToken = data.continuationToken || null;
+      renderVideos(videos, append);
+
+      if (videos.length) {
+        showMessage("Found " + videos.length + " results in this response. Check each source and its usage rights before repurposing.", "success");
+      } else {
+        showMessage("No videos returned for this search. Try a different topic or date range.");
+      }
+
+      moreButton.hidden = !continuationToken;
+    } catch (error) {
+      if (searchId !== currentSearchId) return;
+      showMessage("Could not load videos. " + (error.message || "Please try again later."), "error");
+      if (!append) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "Your search could not be completed. Check the backend connection and try again.";
+        grid.replaceChildren(empty);
+      }
+      moreButton.hidden = true;
+    } finally {
+      if (searchId === currentSearchId) {
+        searchButton.disabled = false;
+        moreButton.disabled = false;
+      }
+    }
+  }
+
+  document.getElementById("searchForm").addEventListener("submit", event => {
+    event.preventDefault();
+    searchVideos(false);
+  });
+
+  moreButton.addEventListener("click", () => {
+    if (continuationToken) searchVideos(true);
+  });
+
+  checkConnection();
+  searchVideos(false);
+})();
+</script>
+</body>
+</html>
