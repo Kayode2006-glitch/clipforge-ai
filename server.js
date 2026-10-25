@@ -4,17 +4,27 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
+const { execFile } = require("child_process");
+const { promisify } = require("util");
+
+const execFileAsync = promisify(execFile);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "public");
 
+app.disable("x-powered-by");
 app.use(cors());
 app.use(express.json({ limit: "32kb" }));
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
 const scrapeCreatorsKey = process.env.SCRAPECREATORS_API_KEY;
+
+// This secret protects the diagnostic endpoint.
+// Configure it in Render as CLIPFORGE_DIAGNOSTIC_TOKEN.
+// Do not use your Supabase or ScrapeCreators key for this value.
+const diagnosticToken = process.env.CLIPFORGE_DIAGNOSTIC_TOKEN;
 
 const supabase =
 supabaseUrl && supabaseKey
@@ -99,6 +109,26 @@ typeof value === "string" &&
 );
 }
 
+// Protect the diagnostic endpoint with a dedicated secret.
+function requireDiagnosticToken(req, res, next) {
+if (!diagnosticToken || diagnosticToken.length < 32) {
+return res.status(503).json({
+error: "The diagnostic endpoint is not configured."
+});
+}
+
+const authorization = req.get("authorization") || "";
+const match = authorization.match(/^Bearer\s+(\S+)$/i);
+
+if (!match || match[1] !== diagnosticToken) {
+return res.status(401).json({
+error: "Unauthorized."
+});
+}
+
+return next();
+}
+
 // Serve the ClipForge dashboard.
 app.use(express.static(PUBLIC_DIR, {
 index: false
@@ -166,14 +196,67 @@ return res.status(503).json({
 }
 });
 
+// Protected FFmpeg availability diagnostic.
+// It runs one fixed version command, with a short timeout.
+// It never accepts executable names or arguments from the request.
+app.get(
+"/api/diagnostics/ffmpeg",
+requireDiagnosticToken,
+async (req, res) => {
+try {
+const { stdout } = await execFileAsync(
+"ffmpeg",
+["-version"],
+{
+timeout: 5000,
+maxBuffer: 16 * 1024
+}
+);
+
+  const firstLine = String(stdout || "").split("\n")[0].trim();
+
+  return res.json({
+    checked: true,
+    ffmpegAvailable: true,
+    version: firstLine || "Version detected",
+    timestamp: new Date().toISOString(),
+    note: "FFmpeg is available. This does not yet confirm that the server has sufficient resources to render videos."
+  });
+} catch (error) {
+  if (error.code === "ENOENT") {
+    return res.json({
+      checked: true,
+      ffmpegAvailable: false,
+      timestamp: new Date().toISOString(),
+      note: "FFmpeg was not found in the server's executable search path."
+    });
+  }
+
+  if (error.killed || error.code === "ETIMEDOUT") {
+    return res.status(504).json({
+      error: "The FFmpeg diagnostic timed out."
+    });
+  }
+
+  console.error("FFmpeg diagnostic failed:", error.code || "unknown");
+
+  return res.status(500).json({
+    error: "Could not complete the FFmpeg diagnostic."
+  });
+}
+
+}
+);
+
 app.get("/api", (req, res) => {
 res.json({
 name: "ClipForge AI API",
-version: "1.4.0",
+version: "1.5.0",
 endpoints: [
 "GET /",
 "GET /api/health",
 "GET /api/discover?topic=football",
+"GET /api/diagnostics/ffmpeg (diagnostic token required)",
 "POST /api/sources (sign-in required)",
 "GET /api/sources (sign-in required)",
 "POST /api/jobs (sign-in required)",
@@ -264,15 +347,13 @@ const searchUrl = new URL(
 
 searchUrl.searchParams.set("query", topic);
 
-// Preserve the provider's existing sort options.
-// "recent" is accepted by our API but mapped to relevance until
-// the provider's supported recent-sort parameter is confirmed.
+// "recent" temporarily maps to relevance until the provider's
+// supported recent-sort parameter has been confirmed.
 const providerSort =
   sortBy === "recent" ? "relevance" : sortBy;
 
 searchUrl.searchParams.set("sortBy", providerSort);
 
-// "all" means do not apply a publication-date filter.
 if (uploadDate !== "all") {
   searchUrl.searchParams.set("uploadDate", uploadDate);
 }
@@ -477,80 +558,73 @@ return res.status(502).json({
 });
 
 // Register an authorized video source for the signed-in user.
-app.post(
-"/api/sources",
-requireUser,
-async (req, res) => {
-const { title, source_url, permission_confirmed } =
-req.body || {};
+app.post("/api/sources", requireUser, async (req, res) => {
+const { title, source_url, permission_confirmed } = req.body || {};
 
 if (
-  typeof title !== "string" ||
-  !title.trim() ||
-  title.trim().length > 200
+typeof title !== "string" ||
+!title.trim() ||
+title.trim().length > 200
 ) {
-  return res.status(400).json({
-    error: "Title is required and must be at most 200 characters."
-  });
+return res.status(400).json({
+error: "Title is required and must be at most 200 characters."
+});
 }
 
 if (
-  typeof source_url !== "string" ||
-  source_url.length > 2048 ||
-  !validHttpUrl(source_url)
+typeof source_url !== "string" ||
+source_url.length > 2048 ||
+!validHttpUrl(source_url)
 ) {
-  return res.status(400).json({
-    error: "Provide a valid HTTP or HTTPS source URL."
-  });
+return res.status(400).json({
+error: "Provide a valid HTTP or HTTPS source URL."
+});
 }
 
 if (permission_confirmed !== true) {
-  return res.status(400).json({
-    error: "Confirm that you own or have permission to use this content."
-  });
+return res.status(400).json({
+error: "Confirm that you own or have permission to use this content."
+});
 }
 
 try {
-  const { data, error } = await supabase
-    .from("content_sources")
-    .insert({
-      user_id: req.user.id,
-      title: title.trim(),
-      source_url,
-      source_type: "authorized_url",
-      permission_confirmed: true
-    })
-    .select("id, title, source_url, status, created_at")
-    .single();
+const { data, error } = await supabase
+.from("content_sources")
+.insert({
+user_id: req.user.id,
+title: title.trim(),
+source_url,
+source_type: "authorized_url",
+permission_confirmed: true
+})
+.select("id, title, source_url, status, created_at")
+.single();
 
-  if (error) {
-    console.error("Source creation failed:", error.message);
-
-    return res.status(500).json({
-      error: "Could not save the content source."
-    });
-  }
-
-  return res.status(201).json({
-    message: "Content source registered.",
-    source: data
-  });
-} catch (error) {
-  console.error("Source creation error:", error.message);
+if (error) {
+  console.error("Source creation failed:", error.message);
 
   return res.status(500).json({
-    error: "Could not register the content source."
+    error: "Could not save the content source."
   });
 }
 
+return res.status(201).json({
+  message: "Content source registered.",
+  source: data
+});
+
+} catch (error) {
+console.error("Source creation error:", error.message);
+
+return res.status(500).json({
+  error: "Could not register the content source."
+});
+
 }
-);
+});
 
 // List only sources belonging to the signed-in user.
-app.get(
-"/api/sources",
-requireUser,
-async (req, res) => {
+app.get("/api/sources", requireUser, async (req, res) => {
 try {
 const { data, error } = await supabase
 .from("content_sources")
@@ -559,126 +633,120 @@ const { data, error } = await supabase
 .order("created_at", { ascending: false })
 .limit(100);
 
-  if (error) {
-    console.error("Source listing failed:", error.message);
-
-    return res.status(500).json({
-      error: "Could not retrieve content sources."
-    });
-  }
-
-  return res.json({ sources: data });
-} catch (error) {
-  console.error("Source listing error:", error.message);
+if (error) {
+  console.error("Source listing failed:", error.message);
 
   return res.status(500).json({
     error: "Could not retrieve content sources."
   });
 }
 
+return res.json({ sources: data });
+
+} catch (error) {
+console.error("Source listing error:", error.message);
+
+return res.status(500).json({
+  error: "Could not retrieve content sources."
+});
+
 }
-);
+});
 
 // Create a clipping job only for a source owned by this user.
-app.post(
-"/api/jobs",
-requireUser,
-async (req, res) => {
+app.post("/api/jobs", requireUser, async (req, res) => {
 const { source_id, target_platforms } = req.body || {};
 
 if (!validUuid(source_id)) {
-  return res.status(400).json({
-    error: "A valid source_id UUID is required."
-  });
+return res.status(400).json({
+error: "A valid source_id UUID is required."
+});
 }
 
 const allowedPlatforms = [
-  "tiktok",
-  "instagram",
-  "facebook",
-  "youtube"
+"tiktok",
+"instagram",
+"facebook",
+"youtube"
 ];
 
 if (
-  !Array.isArray(target_platforms) ||
-  target_platforms.length === 0 ||
-  target_platforms.some(
-    platform => !allowedPlatforms.includes(platform)
-  ) ||
-  new Set(target_platforms).size !== target_platforms.length
+!Array.isArray(target_platforms) ||
+target_platforms.length === 0 ||
+target_platforms.some(
+platform => !allowedPlatforms.includes(platform)
+) ||
+new Set(target_platforms).size !== target_platforms.length
 ) {
-  return res.status(400).json({
-    error: "Choose one or more supported platforms: tiktok, instagram, facebook, youtube."
-  });
+return res.status(400).json({
+error: "Choose one or more supported platforms: tiktok, instagram, facebook, youtube."
+});
 }
 
 try {
-  const { data: source, error: sourceError } = await supabase
-    .from("content_sources")
-    .select("id, permission_confirmed, status")
-    .eq("id", source_id)
-    .eq("user_id", req.user.id)
-    .maybeSingle();
+const { data: source, error: sourceError } = await supabase
+.from("content_sources")
+.select("id, permission_confirmed, status")
+.eq("id", source_id)
+.eq("user_id", req.user.id)
+.maybeSingle();
 
-  if (sourceError) {
-    console.error("Source lookup failed:", sourceError.message);
+if (sourceError) {
+  console.error("Source lookup failed:", sourceError.message);
 
-    return res.status(500).json({
-      error: "Could not verify the content source."
-    });
-  }
-
-  if (!source || source.status !== "active") {
-    return res.status(404).json({
-      error: "Active content source not found for your account."
-    });
-  }
-
-  if (!source.permission_confirmed) {
-    return res.status(403).json({
-      error: "Content permission must be confirmed before processing."
-    });
-  }
-
-  const { data, error } = await supabase
-    .from("clipping_jobs")
-    .insert({
-      user_id: req.user.id,
-      source_id,
-      target_platforms,
-      status: "queued"
-    })
-    .select("id, source_id, status, target_platforms, created_at")
-    .single();
-
-  if (error) {
-    console.error("Job creation failed:", error.message);
-
-    return res.status(500).json({
-      error: "Could not create the clipping job."
-    });
-  }
-
-  return res.status(201).json({
-    message: "Clipping job queued. Processing is not yet implemented.",
-    job: data
+  return res.status(500).json({
+    error: "Could not verify the content source."
   });
-} catch (error) {
-  console.error("Job creation error:", error.message);
+}
+
+if (!source || source.status !== "active") {
+  return res.status(404).json({
+    error: "Active content source not found for your account."
+  });
+}
+
+if (!source.permission_confirmed) {
+  return res.status(403).json({
+    error: "Content permission must be confirmed before processing."
+  });
+}
+
+const { data, error } = await supabase
+  .from("clipping_jobs")
+  .insert({
+    user_id: req.user.id,
+    source_id,
+    target_platforms,
+    status: "queued"
+  })
+  .select("id, source_id, status, target_platforms, created_at")
+  .single();
+
+if (error) {
+  console.error("Job creation failed:", error.message);
 
   return res.status(500).json({
     error: "Could not create the clipping job."
   });
 }
 
+return res.status(201).json({
+  message: "Clipping job queued. Processing is not yet implemented.",
+  job: data
+});
+
+} catch (error) {
+console.error("Job creation error:", error.message);
+
+return res.status(500).json({
+  error: "Could not create the clipping job."
+});
+
 }
-);
+});
 
 // List only jobs belonging to the signed-in user.
-app.get(
-"/api/jobs",
-requireUser,
-async (req, res) => {
+app.get("/api/jobs", requireUser, async (req, res) => {
 try {
 const { data, error } = await supabase
 .from("clipping_jobs")
@@ -687,31 +755,28 @@ const { data, error } = await supabase
 .order("created_at", { ascending: false })
 .limit(100);
 
-  if (error) {
-    console.error("Job listing failed:", error.message);
-
-    return res.status(500).json({
-      error: "Could not retrieve clipping jobs."
-    });
-  }
-
-  return res.json({ jobs: data });
-} catch (error) {
-  console.error("Job listing error:", error.message);
+if (error) {
+  console.error("Job listing failed:", error.message);
 
   return res.status(500).json({
     error: "Could not retrieve clipping jobs."
   });
 }
 
+return res.json({ jobs: data });
+
+} catch (error) {
+console.error("Job listing error:", error.message);
+
+return res.status(500).json({
+  error: "Could not retrieve clipping jobs."
+});
+
 }
-);
+});
 
 // Get a job and only its clips belonging to the signed-in user.
-app.get(
-"/api/jobs/:id",
-requireUser,
-async (req, res) => {
+app.get("/api/jobs/:id", requireUser, async (req, res) => {
 if (!validUuid(req.params.id)) {
 return res.status(400).json({
 error: "Invalid job ID."
@@ -719,56 +784,56 @@ error: "Invalid job ID."
 }
 
 try {
-  const { data: job, error: jobError } = await supabase
-    .from("clipping_jobs")
-    .select("id, source_id, status, target_platforms, error_message, created_at, updated_at")
-    .eq("id", req.params.id)
-    .eq("user_id", req.user.id)
-    .maybeSingle();
+const { data: job, error: jobError } = await supabase
+.from("clipping_jobs")
+.select("id, source_id, status, target_platforms, error_message, created_at, updated_at")
+.eq("id", req.params.id)
+.eq("user_id", req.user.id)
+.maybeSingle();
 
-  if (jobError) {
-    console.error("Job lookup failed:", jobError.message);
-
-    return res.status(500).json({
-      error: "Could not retrieve the clipping job."
-    });
-  }
-
-  if (!job) {
-    return res.status(404).json({
-      error: "Clipping job not found."
-    });
-  }
-
-  const { data: clips, error: clipsError } = await supabase
-    .from("clips")
-    .select("id, title, start_seconds, end_seconds, video_url, caption_text, status, created_at")
-    .eq("job_id", job.id)
-    .eq("user_id", req.user.id)
-    .order("created_at", { ascending: true });
-
-  if (clipsError) {
-    console.error("Clip lookup failed:", clipsError.message);
-
-    return res.status(500).json({
-      error: "Could not retrieve clips."
-    });
-  }
-
-  return res.json({
-    job,
-    clips
-  });
-} catch (error) {
-  console.error("Job lookup error:", error.message);
+if (jobError) {
+  console.error("Job lookup failed:", jobError.message);
 
   return res.status(500).json({
     error: "Could not retrieve the clipping job."
   });
 }
 
+if (!job) {
+  return res.status(404).json({
+    error: "Clipping job not found."
+  });
 }
-);
+
+const { data: clips, error: clipsError } = await supabase
+  .from("clips")
+  .select("id, title, start_seconds, end_seconds, video_url, caption_text, status, created_at")
+  .eq("job_id", job.id)
+  .eq("user_id", req.user.id)
+  .order("created_at", { ascending: true });
+
+if (clipsError) {
+  console.error("Clip lookup failed:", clipsError.message);
+
+  return res.status(500).json({
+    error: "Could not retrieve clips."
+  });
+}
+
+return res.json({
+  job,
+  clips
+});
+
+} catch (error) {
+console.error("Job lookup error:", error.message);
+
+return res.status(500).json({
+  error: "Could not retrieve the clipping job."
+});
+
+}
+});
 
 app.listen(PORT, "0.0.0.0", () => {
 console.log("ClipForge AI running on port ${PORT}");
