@@ -2,620 +2,688 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#090d18">
-  <meta name="description" content="ClipForge AI — discover content and prepare better short-form videos.">
-  <title>ClipForge AI | Content Studio</title>
-  <style>
-    :root {
-      color-scheme: dark;
-      --bg: #090d18;
-      --panel: #111827;
-      --panel2: #172033;
-      --line: #263247;
-      --text: #f4f7fb;
-      --muted: #94a3b8;
-      --accent: #8b5cf6;
-      --accent2: #6d42e8;
-      --green: #34d399;
-      --red: #f87171;
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: Inter, system-ui, -apple-system, sans-serif;
-      font-size: 14px;
-    }
-
-    button, input, select { font: inherit; }
-    button { cursor: pointer; }
-
-    .app { min-height: 100vh; }
-
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 18px 5%;
-      border-bottom: 1px solid var(--line);
-      background: #0c1220;
-      position: sticky;
-      top: 0;
-      z-index: 5;
-    }
-
-    .brand { display: flex; align-items: center; gap: 11px; }
-    .logo {
-      width: 40px;
-      height: 40px;
-      display: grid;
-      place-items: center;
-      border-radius: 13px;
-      background: linear-gradient(135deg, #a78bfa, #6d28d9);
-      font-size: 21px;
-      font-weight: 900;
-    }
-
-    .brand-name { font-size: 17px; font-weight: 800; letter-spacing: -.5px; }
-    .brand-name span { color: #a78bfa; }
-    .brand-sub { color: var(--muted); font-size: 11px; margin-top: 3px; }
-
-    .status {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      color: #a7f3d0;
-      font-size: 12px;
-      background: #10291f;
-      border: 1px solid #1b4935;
-      padding: 8px 11px;
-      border-radius: 30px;
-      white-space: nowrap;
-    }
-
-    .dot {
-      height: 7px;
-      width: 7px;
-      border-radius: 50%;
-      background: var(--green);
-    }
-
-    main { max-width: 1200px; margin: auto; padding: 34px 5% 60px; }
-
-    .eyebrow {
-      color: #a78bfa;
-      font-weight: 800;
-      text-transform: uppercase;
-      font-size: 11px;
-      letter-spacing: 2px;
-    }
-
-    h1 { font-size: clamp(28px, 5vw, 43px); letter-spacing: -1.5px; margin: 10px 0; }
-    .intro { color: var(--muted); line-height: 1.7; max-width: 610px; margin: 0; }
-
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
-      margin: 26px 0 30px;
-    }
-
-    .stat {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      padding: 17px;
-      border-radius: 15px;
-      min-width: 0;
-    }
-
-    .stat-label { color: var(--muted); font-size: 12px; }
-    .stat-value { font-size: 24px; font-weight: 800; margin-top: 8px; overflow-wrap: anywhere; }
-    .stat-note { color: var(--muted); font-size: 11px; margin-top: 5px; }
-
-    .section-heading {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-bottom: 15px;
-    }
-
-    h2 { font-size: 18px; margin: 0; letter-spacing: -.3px; }
-    .muted { color: var(--muted); }
-    .filters {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 155px 155px auto;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-
-    input, select {
-      width: 100%;
-      min-width: 0;
-      padding: 12px;
-      color: var(--text);
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      outline: none;
-    }
-
-    input:focus, select:focus { border-color: var(--accent); }
-
-    .btn {
-      border: 1px solid var(--line);
-      background: var(--panel2);
-      color: var(--text);
-      border-radius: 10px;
-      padding: 11px 15px;
-      font-weight: 700;
-      transition: .15s;
-    }
-
-    .btn:hover { border-color: #8b5cf6; }
-    .btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
-    .btn-primary:hover { background: var(--accent2); }
-    .btn:disabled { opacity: .55; cursor: wait; }
-
-    .filter-note { color: var(--muted); font-size: 12px; line-height: 1.6; margin-bottom: 22px; }
-
-    .message {
-      display: none;
-      margin: 16px 0;
-      padding: 14px;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: var(--panel);
-      color: var(--muted);
-      line-height: 1.6;
-      overflow-wrap: anywhere;
-    }
-
-    .message.show { display: block; }
-    .message.error { color: #fecaca; border-color: #7f1d1d; }
-    .message.success { color: #a7f3d0; border-color: #166534; }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 17px;
-    }
-
-    .video-card {
-      min-width: 0;
-      overflow: hidden;
-      border: 1px solid var(--line);
-      border-radius: 15px;
-      background: var(--panel);
-      display: flex;
-      flex-direction: column;
-    }
-
-    .thumbnail {
-      position: relative;
-      display: block;
-      background: #202a3b;
-      aspect-ratio: 16 / 9;
-      overflow: hidden;
-    }
-
-    .thumbnail img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .duration {
-      position: absolute;
-      bottom: 9px;
-      right: 9px;
-      padding: 4px 6px;
-      background: #000c;
-      border-radius: 5px;
-      font-size: 11px;
-    }
-
-    .play {
-      position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      font-size: 37px;
-      color: white;
-      opacity: .88;
-      text-shadow: 0 2px 12px #000;
-    }
-
-    .video-info { padding: 14px; display: flex; flex-direction: column; flex: 1; }
-    .video-title {
-      color: var(--text);
-      font-weight: 750;
-      line-height: 1.5;
-      font-size: 13px;
-      text-decoration: none;
-      overflow-wrap: anywhere;
-    }
-    .video-title:hover { color: #c4b5fd; }
-    .video-meta { color: var(--muted); font-size: 11px; margin: 10px 0 14px; }
-    .card-actions { display: flex; gap: 8px; margin-top: auto; }
-    .card-actions a { flex: 1; text-align: center; text-decoration: none; }
-    .card-actions .btn { padding: 10px 8px; font-size: 12px; }
-
-    .empty {
-      padding: 40px 20px;
-      text-align: center;
-      border: 1px dashed var(--line);
-      border-radius: 15px;
-      color: var(--muted);
-      line-height: 1.8;
-      grid-column: 1 / -1;
-    }
-
-    .empty-icon { font-size: 32px; margin-bottom: 8px; }
-    .footer { border-top: 1px solid var(--line); padding: 20px 5%; color: var(--muted); font-size: 11px; text-align: center; line-height: 1.7; }
-
-    @media (max-width: 850px) {
-      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .filters { grid-template-columns: 1fr 1fr; }
-      .filters input { grid-column: 1 / -1; }
-    }
-
-    @media (max-width: 520px) {
-      header { padding: 13px 4%; }
-      .brand-name { font-size: 15px; }
-      .brand-sub { font-size: 10px; }
-      .status { font-size: 10px; padding: 7px 9px; }
-      main { padding: 27px 4% 45px; }
-      .stats { gap: 8px; }
-      .stat { padding: 12px 10px; }
-      .stat-value { font-size: 20px; }
-      .stat-label { font-size: 10px; }
-      .grid { grid-template-columns: 1fr; }
-      .filters { grid-template-columns: 1fr 1fr; }
-      .filters .btn { grid-column: 1 / -1; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#090d18">
+<meta name="description" content="ClipForge AI — discover, edit and create videos.">
+<title>ClipForge AI | Studio</title>
+<style>
+:root{color-scheme:dark;--bg:#090d18;--panel:#111827;--panel2:#172033;--line:#263247;--text:#f4f7fb;--muted:#94a3b8;--accent:#8b5cf6;--accent2:#6d42e8;--green:#34d399;--red:#f87171}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px Inter,system-ui,-apple-system,sans-serif}
+button,input,select,textarea{font:inherit}button{cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}
+header{position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 4%;background:#0c1220;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px}.logo{display:grid;place-items:center;width:39px;height:39px;border-radius:12px;background:linear-gradient(135deg,#a78bfa,#6d28d9);font-size:21px;font-weight:900}
+.brand-name{font-weight:850;font-size:17px}.brand-name span{color:#a78bfa}.brand-sub{font-size:10px;color:var(--muted);margin-top:3px}
+.status{font-size:11px;color:#a7f3d0;border:1px solid #1b4935;background:#10291f;border-radius:30px;padding:7px 10px}
+main{max-width:1250px;margin:auto;padding:25px 4% 55px}
+h1{font-size:clamp(27px,5vw,40px);letter-spacing:-1.2px;margin:8px 0}
+h2{font-size:19px;margin:0 0 14px}h3{font-size:14px;margin:0 0 12px}
+p{line-height:1.65}.muted,.intro{color:var(--muted)}.intro{max-width:650px;margin:0}
+.eyebrow{font-size:10px;font-weight:850;letter-spacing:2px;text-transform:uppercase;color:#a78bfa}
+.nav{display:flex;gap:8px;flex-wrap:wrap;margin:24px 0}
+.nav button,.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;padding:10px 13px;font-weight:700}
+.nav button.active,.btn-primary{background:var(--accent);border-color:var(--accent);color:white}
+.btn:hover,.nav button:hover{border-color:#a78bfa}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:20px;min-width:0}
+.hidden{display:none!important}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:22px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:14px;min-width:0}
+.stat small{color:var(--muted)}.stat strong{display:block;font-size:20px;margin-top:8px;overflow-wrap:anywhere}
+label{display:block;color:#cbd5e1;font-size:12px;margin:0 0 6px}
+input,select,textarea{width:100%;min-width:0;background:#0c1220;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:11px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:78px}
+.field{min-width:0}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}
+.message{display:none;padding:12px;border:1px solid var(--line);border-radius:10px;background:#0c1220;color:var(--muted);line-height:1.6;overflow-wrap:anywhere;margin:12px 0}
+.message.show{display:block}.message.error{border-color:#7f1d1d;color:#fecaca}.message.success{border-color:#166534;color:#a7f3d0}
+.editor-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(270px,.75fr);gap:18px}
+.preview-wrap{background:#05070c;border:1px solid var(--line);border-radius:13px;padding:12px;display:grid;place-items:center;min-height:260px}
+.preview{position:relative;width:min(100%,450px);aspect-ratio:9/16;max-height:65vh;background:#000;overflow:hidden;border-radius:8px;display:grid;place-items:center;transition:aspect-ratio .15s}
+.preview video{width:100%;height:100%;object-fit:contain;background:#000}
+.preview.fill video{object-fit:cover}
+.preview.landscape{width:100%;aspect-ratio:16/9}
+.preview.square{width:min(100%,450px);aspect-ratio:1}
+.preview.portrait45{width:min(100%,450px);aspect-ratio:4/5}
+.preview.classic{width:100%;aspect-ratio:4/3}
+.preview.portrait34{width:min(100%,450px);aspect-ratio:3/4}
+.overlay{position:absolute;left:5%;right:5%;top:50%;transform:translateY(-50%);text-align:center;font-size:clamp(15px,3vw,28px);font-weight:900;white-space:pre-wrap;overflow-wrap:anywhere;text-shadow:0 2px 5px #000,0 0 10px #000;pointer-events:none}
+.placeholder{text-align:center;color:var(--muted);padding:25px}.placeholder strong{display:block;font-size:35px;margin-bottom:10px}
+.timeline{margin-top:15px;background:#0c1220;border:1px solid var(--line);border-radius:12px;padding:13px}
+.range-row{display:grid;grid-template-columns:75px minmax(0,1fr);align-items:center;gap:10px;margin:12px 0}
+input[type=range]{padding:0;accent-color:var(--accent)}
+.time-labels{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}
+.tool-section{border-top:1px solid var(--line);padding-top:15px;margin-top:15px}
+.tool-section:first-child{border-top:0;padding-top:0;margin-top:0}
+.small{font-size:11px;color:var(--muted);line-height:1.6}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.video-card{border:1px solid var(--line);border-radius:13px;overflow:hidden;background:var(--panel);min-width:0}
+.thumb{aspect-ratio:16/9;background:#202a3b;display:grid;place-items:center;overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.video-info{padding:12px}.video-title{font-weight:750;line-height:1.5;overflow-wrap:anywhere}.video-meta{font-size:11px;color:var(--muted);margin:9px 0}
+.video-info a{color:inherit;text-decoration:none}.video-info a:hover{color:#c4b5fd}
+.empty{text-align:center;padding:30px 15px;border:1px dashed var(--line);border-radius:12px;color:var(--muted);grid-column:1/-1;line-height:1.7}
+.footer{text-align:center;color:var(--muted);font-size:11px;border-top:1px solid var(--line);padding:20px 5%;line-height:1.7}
+@media(max-width:780px){.editor-layout{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.preview{max-height:60vh}}
+@media(max-width:520px){main{padding:22px 4% 40px}.panel{padding:13px}.stats{gap:7px}.stat{padding:10px}.stat strong{font-size:17px}.grid{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.nav button{flex:1}.range-row{grid-template-columns:65px 1fr}}
+</style>
 </head>
 <body>
-<div class="app">
-  <header>
-    <div class="brand">
-      <div class="logo">C</div>
+<header>
+  <div class="brand"><div class="logo">C</div><div><div class="brand-name">ClipForge <span>AI</span></div><div class="brand-sub">YOUR CONTENT STUDIO</div></div></div>
+  <div class="status" id="connectionStatus">Connecting…</div>
+</header>
+
+<main>
+  <div class="eyebrow">Discover · Create · Grow</div>
+  <h1>Your video studio.</h1>
+  <p class="intro">Discover inspiration, preview your own footage, prepare captions and voiceovers, and build toward a complete AI-powered editing workflow.</p>
+
+  <div class="stats">
+    <div class="stat"><small>Videos discovered</small><strong id="videoCount">—</strong></div>
+    <div class="stat"><small>Editor</small><strong>Preview mode</strong></div>
+    <div class="stat"><small>Voice tools</small><strong id="speechStatus">Checking…</strong></div>
+  </div>
+
+  <nav class="nav" aria-label="Studio sections">
+    <button class="active" data-tab="editor">✂️ Video editor</button>
+    <button data-tab="discover">⌕ Discover</button>
+  </nav>
+
+  <section id="editorSection">
+    <div class="panel">
+      <h2>Import your video</h2>
+      <p class="muted">Choose a video stored on your phone. This preview uses your browser; the file is not uploaded to our server by this step.</p>
+      <div class="field"><label for="videoFile">Video file</label><input id="videoFile" type="file" accept="video/*"></div>
+      <div class="actions">
+        <button class="btn" id="playButton" disabled>▶ Play</button>
+        <button class="btn" id="pauseButton" disabled>Ⅱ Pause</button>
+        <button class="btn" id="restartButton" disabled>↺ Restart</button>
+      </div>
+      <div id="editorMessage" class="message show">Import a video to start editing its preview.</div>
+    </div>
+
+    <div class="editor-layout">
       <div>
-        <div class="brand-name">ClipForge <span>AI</span></div>
-        <div class="brand-sub">YOUR CONTENT STUDIO</div>
-      </div>
-    </div>
-    <div class="status"><span class="dot"></span><span id="connectionStatus">Connecting...</span></div>
-  </header>
-
-  <main>
-    <div class="eyebrow">Discover · Create · Grow</div>
-    <h1>Your next great clip starts here.</h1>
-    <p class="intro">Discover videos worth exploring. Find inspiration, inspect source material, and build your future short-form content workflow from one studio.</p>
-
-    <div class="stats">
-      <div class="stat">
-        <div class="stat-label">Videos found</div>
-        <div class="stat-value" id="videoCount">—</div>
-        <div class="stat-note">Current search results</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Source platform</div>
-        <div class="stat-value">YouTube</div>
-        <div class="stat-note">Discovery integration</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Workflow stage</div>
-        <div class="stat-value" style="font-size:18px">Discovery</div>
-        <div class="stat-note">Clipping comes next</div>
-      </div>
-    </div>
-
-    <section>
-      <div class="section-heading">
-        <h2>Discover content</h2>
-        <span class="muted" id="resultLabel">Ready to search</span>
-      </div>
-
-      <form id="searchForm">
-        <div class="filters">
-          <input id="topic" type="search" maxlength="150" placeholder="Search football, podcasts, interviews..." value="football" required>
-          <select id="sortBy" aria-label="Sort results">
-            <option value="popular">Popular</option>
-            <option value="recent">Recent</option>
-            <option value="relevance">Relevance</option>
-          </select>
-          <select id="uploadDate" aria-label="Upload date">
-            <option value="this_week">This week</option>
-            <option value="today">Today</option>
-            <option value="this_month">This month</option>
-            <option value="this_year">This year</option>
-            <option value="all">Any time</option>
-          </select>
-          <button class="btn btn-primary" id="searchButton" type="submit">Search videos</button>
+        <div class="preview-wrap">
+          <div class="preview" id="preview">
+            <div class="placeholder" id="placeholder"><strong>▶</strong>Your video preview appears here</div>
+            <video id="video" playsinline preload="metadata" class="hidden"></video>
+            <div class="overlay" id="textOverlay"></div>
+          </div>
         </div>
-      </form>
-      <div class="filter-note">Search results open on YouTube. Discovery finds source videos; it does not automatically download or create clips. Only repurpose footage you own or are authorized to use.</div>
-      <div id="message" class="message" role="status" aria-live="polite"></div>
-      <div class="grid" id="videoGrid">
-        <div class="empty"><div class="empty-icon">⌕</div>Search for content to discover videos.</div>
+        <div class="timeline">
+          <h3>Trim preview</h3>
+          <div class="range-row"><label for="trimStart">Start (s)</label><input id="trimStart" type="number" min="0" step="0.1" value="0" disabled></div>
+          <div class="range-row"><label for="trimEnd">End (s)</label><input id="trimEnd" type="number" min="0" step="0.1" value="0" disabled></div>
+          <div class="range-row"><label for="seek">Position</label><input id="seek" type="range" min="0" max="100" value="0" disabled></div>
+          <div class="time-labels"><span id="currentTime">0:00</span><span id="durationLabel">0:00</span></div>
+          <p class="small">The trim controls set the preview playback range. They do not create a new video file yet.</p>
+        </div>
       </div>
-      <div style="display:flex;justify-content:center;margin-top:22px">
-        <button class="btn" id="moreButton" type="button" hidden>Load more results</button>
-      </div>
-    </section>
-  </main>
 
-  <footer class="footer">
-    ClipForge AI · Content discovery workspace<br>
-    AI-assisted clipping and publishing features are still under development.
-  </footer>
-</div>
+      <div class="panel">
+        <div class="tool-section">
+          <h3>Canvas & framing</h3>
+          <div class="field"><label for="ratio">Aspect ratio</label>
+            <select id="ratio">
+              <option value="9:16">9:16 — Reels / Shorts / TikTok</option>
+              <option value="16:9">16:9 — YouTube / widescreen</option>
+              <option value="1:1">1:1 — Square</option>
+              <option value="4:5">4:5 — Portrait feed</option>
+              <option value="4:3">4:3 — Classic</option>
+              <option value="3:4">3:4 — Portrait</option>
+            </select>
+          </div>
+          <div class="field" style="margin-top:12px"><label for="framing">Video framing</label>
+            <select id="framing"><option value="fit">Fit — show the whole video</option><option value="fill">Fill — crop to canvas</option></select>
+          </div>
+        </div>
+
+        <div class="tool-section">
+          <h3>Speed & appearance</h3>
+          <div class="field"><label for="speed">Playback speed</label><select id="speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1× Normal</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select></div>
+          <div class="field" style="margin-top:12px"><label for="filter">Preview filter</label><select id="filter"><option value="none">Original</option><option value="contrast(1.12) saturate(1.2)">Vivid</option><option value="grayscale(1)">Black & white</option><option value="sepia(.65)">Warm vintage</option><option value="brightness(1.12) contrast(1.05)">Brighten</option><option value="saturate(.7) contrast(1.12)">Cinematic</option></select></div>
+        </div>
+
+        <div class="tool-section">
+          <h3>Text overlay</h3>
+          <div class="field"><label for="overlayText">Text to show on preview</label><textarea id="overlayText" maxlength="180" placeholder="Type a title, hook or caption…"></textarea></div>
+          <div class="field" style="margin-top:10px"><label for="overlaySize">Text size</label><input id="overlaySize" type="range" min="14" max="48" value="26"></div>
+          <p class="small">Text overlays are currently preview-only. Burned-in captions and final rendering come with the export engine.</p>
+        </div>
+
+        <div class="tool-section">
+          <h3>Text-to-speech</h3>
+          <p class="small">Create a spoken preview from your script using voices available on this device/browser. Available languages and Nigerian English voices depend on your device.</p>
+          <div class="field"><label for="speechText">Narration script</label><textarea id="speechText" maxlength="5000" placeholder="Write the words you want spoken…"></textarea></div>
+          <div class="field" style="margin-top:10px"><label for="voiceSelect">Voice</label><select id="voiceSelect"><option value="">Default available voice</option></select></div>
+          <div class="form-grid" style="margin-top:10px">
+            <div class="field"><label for="speechRate">Speaking rate</label><select id="speechRate"><option value="0.75">Slow</option><option value="0.9">Relaxed</option><option value="1" selected>Normal</option><option value="1.15">Fast</option><option value="1.3">Very fast</option></select></div>
+            <div class="field"><label for="speechPitch">Pitch</label><select id="speechPitch"><option value="0.8">Low</option><option value="1" selected>Normal</option><option value="1.2">High</option></select></div>
+          </div>
+          <div class="actions"><button class="btn btn-primary" id="speakButton">🔊 Speak script</button><button class="btn" id="stopSpeechButton">Stop voice</button></div>
+          <div id="speechMessage" class="message" role="status"></div>
+        </div>
+
+        <div class="tool-section">
+          <h3>Export settings</h3>
+          <p class="small">Choose your intended output settings now. Actual server-rendered export and download will be enabled after the secure processing backend is connected.</p>
+          <div class="form-grid">
+            <div class="field"><label for="resolution">Resolution</label><select id="resolution"><option value="720">720p</option><option value="1080" selected>1080p</option><option value="1440">1440p</option><option value="2160">4K</option></select></div>
+            <div class="field"><label for="fps">Frame rate</label><select id="fps"><option value="24">24 FPS</option><option value="30" selected>30 FPS</option><option value="60">60 FPS</option></select></div>
+            <div class="field"><label for="quality">Quality</label><select id="quality"><option value="compressed">Smaller file</option><option value="standard" selected>Standard</option><option value="high">High quality</option></select></div>
+            <div class="field"><label for="exportMode">Export workflow</label><select id="exportMode"><option value="manual">Manual settings</option><option value="automatic">Automatic platform preset</option></select></div>
+          </div>
+          <div class="field" style="margin-top:12px"><label for="platform">Platform preset</label><select id="platform"><option value="tiktok">TikTok</option><option value="instagram">Instagram Reels</option><option value="youtube">YouTube Shorts</option><option value="facebook">Facebook Reels</option><option value="youtube_wide">YouTube widescreen</option><option value="custom">Custom / other</option></select></div>
+          <div id="exportSummary" class="message show">1080p · 30 FPS · Standard · 9:16</div>
+          <button class="btn" id="exportButton" disabled>Export video — backend not connected</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="discoverSection" class="hidden">
+    <div class="panel">
+      <h2>Discover content</h2>
+      <p class="muted">Find source videos to watch and study. Discovery does not download videos or grant permission to reuse them.</p>
+      <form id="searchForm">
+        <div class="form-grid">
+          <div class="field" style="grid-column:1/-1"><label for="topic">Search topic</label><input id="topic" type="search" maxlength="150" placeholder="Football, podcasts, interviews…" value="football" required></div>
+          <div class="field"><label for="sortBy">Sort by</label><select id="sortBy"><option value="popular">Popular</option><option value="recent">Recent</option><option value="relevance">Relevance</option></select></div>
+          <div class="field"><label for="uploadDate">Upload date</label><select id="uploadDate"><option value="this_week">This week</option><option value="today">Today</option><option value="this_month">This month</option><option value="this_year">This year</option><option value="all">Any time</option></select></div>
+        </div>
+        <div class="actions"><button class="btn btn-primary" id="searchButton" type="submit">Search videos</button><button class="btn" id="moreButton" type="button" hidden>Load more results</button></div>
+      </form>
+      <div id="discoverMessage" class="message" role="status" aria-live="polite"></div>
+      <p class="small" id="resultLabel">Ready to search.</p>
+      <div class="grid" id="videoGrid"><div class="empty">Search for content to discover videos.</div></div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">ClipForge AI · Creator Studio<br>Only upload and repurpose content you own or are authorized to use.</footer>
 
 <script>
 (() => {
-  "use strict";
+"use strict";
+const $ = id => document.getElementById(id);
+const video = $("video");
+const preview = $("preview");
+const editorMessage = $("editorMessage");
+let localVideoUrl = null;
+let duration = 0;
+let voices = [];
+let continuationToken = null;
+let totalShown = 0;
+let searchId = 0;
 
-  const API_BASE = window.location.origin;
-  const grid = document.getElementById("videoGrid");
-  const message = document.getElementById("message");
-  const searchButton = document.getElementById("searchButton");
-  const moreButton = document.getElementById("moreButton");
-  const connectionStatus = document.getElementById("connectionStatus");
-  const videoCount = document.getElementById("videoCount");
-  const resultLabel = document.getElementById("resultLabel");
+function message(el,text,type=""){
+  el.textContent=text;
+  el.className="message show"+(type?" "+type:"");
+}
+function formatTime(value){
+  if(!Number.isFinite(value)||value<0)return "0:00";
+  const m=Math.floor(value/60);
+  const s=Math.floor(value%60);
+  return m+":"+String(s).padStart(2,"0");
+}
+function setEditorReady(ready){
+  ["playButton","pauseButton","restartButton","trimStart","trimEnd","seek"].forEach(id=>$(id).disabled=!ready);
+}
+function updateTime(){
+  $("currentTime").textContent=formatTime(video.currentTime);
+  $("durationLabel").textContent=formatTime(duration);
+  $("seek").value=duration?String((video.currentTime/duration)*100):"0";
+}
+function clampTrim(){
+  if(!duration)return;
+  let start=Number($("trimStart").value);
+  let end=Number($("trimEnd").value);
+  if(!Number.isFinite(start))start=0;
+  if(!Number.isFinite(end))end=duration;
+  start=Math.max(0,Math.min(start,duration));
+  end=Math.max(0,Math.min(end,duration));
+  if(end<=start){
+    if(document.activeElement===$("trimStart"))end=Math.min(duration,start+.1);
+    else start=Math.max(0,end-.1);
+  }
+  $("trimStart").value=String(start);
+  $("trimEnd").value=String(end);
+  if(video.currentTime<start||video.currentTime>end)video.currentTime=start;
+}
+$("videoFile").addEventListener("change",()=>{
+  const file=$("videoFile").files&&$("videoFile").files[0];
+  if(!file)return;
+  if(!file.type.startsWith("video/")){
+    message(editorMessage,"Choose a valid video file.","error");return;
+  }
+  if(localVideoUrl)URL.revokeObjectURL(localVideoUrl);
+  localVideoUrl=URL.createObjectURL(file);
+  video.src=localVideoUrl;
+  video.classList.remove("hidden");
+  $("placeholder").classList.add("hidden");
+  message(editorMessage,"Video selected: "+file.name+". This file remains in your browser preview.","success");
+  video.load();
+});
+video.addEventListener("loadedmetadata",()=>{
+  duration=Number.isFinite(video.duration)?video.duration:0;
+  $("trimStart").value="0";
+  $("trimEnd").value=String(duration);
+  $("trimStart").max=String(duration);
+  $("trimEnd").max=String(duration);
+  setEditorReady(true);
+  updateTime();
+  applySettings();
+});
+video.addEventListener("timeupdate",()=>{
+  updateTime();
+  const start=Number($("trimStart").value)||0;
+  const end=Number($("trimEnd").value)||duration;
+  if(video.currentTime>=end&&end>start){
+    video.pause();
+    video.currentTime=start;
+  }
+});
+video.addEventListener("error",()=>message(editorMessage,"This browser could not preview that video format. Try an MP4 file.","error"));
+$("playButton").addEventListener("click",()=>{
+  if(!video.src)return;
+  const start=Number($("trimStart").value)||0;
+  const end=Number($("trimEnd").value)||duration;
+  if(video.currentTime<start||video.currentTime>=end)video.currentTime=start;
+  video.play().catch(()=>message(editorMessage,"Tap Play again to allow video playback.","error"));
+});
 
-  let continuationToken = null;
-  let totalShown = 0;
-  let currentSearchId = 0;
+$("pauseButton").addEventListener("click",()=>video.pause());
+$("restartButton").addEventListener("click",()=>{
+  if(!video.src)return;
+  video.currentTime=Number($("trimStart").value)||0;
+  video.pause();
+});
+$("trimStart").addEventListener("change",clampTrim);
+$("trimEnd").addEventListener("change",clampTrim);
+$("seek").addEventListener("input",()=>{
+  if(!duration)return;
+  const start=Number($("trimStart").value)||0;
+  const end=Number($("trimEnd").value)||duration;
+  video.currentTime=start+(Number($("seek").value)/100)*(end-start);
+});
 
-  function showMessage(text, type = "") {
-    message.textContent = text;
-    message.className = "message show" + (type ? " " + type : "");
+function applySettings(){
+  const ratio=$("ratio").value;
+  preview.classList.remove("landscape","square","portrait45","classic","portrait34","fill");
+
+  if(ratio==="16:9")preview.classList.add("landscape");
+  else if(ratio==="1:1")preview.classList.add("square");
+  else if(ratio==="4:5")preview.classList.add("portrait45");
+  else if(ratio==="4:3")preview.classList.add("classic");
+  else if(ratio==="3:4")preview.classList.add("portrait34");
+
+  if($("framing").value==="fill")preview.classList.add("fill");
+
+  video.playbackRate=Number($("speed").value)||1;
+  video.style.filter=$("filter").value;
+  $("textOverlay").textContent=$("overlayText").value;
+  $("textOverlay").style.fontSize=$("overlaySize").value+"px";
+
+  updateExportSummary();
+}
+
+function updateExportSummary(){
+  const resolution=$("resolution").value;
+  const fps=$("fps").value;
+  const quality=$("quality").value;
+  const ratio=$("ratio").value;
+  const mode=$("exportMode").value;
+  const platform=$("platform").value;
+
+  const presets={
+    tiktok:{ratio:"9:16",resolution:"1080",fps:"30"},
+    instagram:{ratio:"9:16",resolution:"1080",fps:"30"},
+    youtube:{ratio:"9:16",resolution:"1080",fps:"30"},
+    facebook:{ratio:"9:16",resolution:"1080",fps:"30"},
+    youtube_wide:{ratio:"16:9",resolution:"1080",fps:"30"}
+  };
+
+  if(mode==="automatic"&&presets[platform]){
+    const p=presets[platform];
+    $("exportSummary").textContent=
+      "Automatic preset: "+platform.replace("_"," ")+" · "+
+      p.resolution+"p · "+p.fps+" FPS · "+p.ratio+
+      ". Choose Manual settings to customise output.";
+  }else{
+    $("exportSummary").textContent=
+      resolution+"p · "+fps+" FPS · "+
+      quality.charAt(0).toUpperCase()+quality.slice(1)+
+      " · "+ratio;
+  }
+}
+
+["ratio","framing","speed","filter","overlayText","overlaySize",
+ "resolution","fps","quality","exportMode","platform"].forEach(id=>{
+  $(id).addEventListener("input",applySettings);
+  $(id).addEventListener("change",applySettings);
+});
+
+$("exportMode").addEventListener("change",()=>{
+  if($("exportMode").value==="automatic"){
+    const presets={
+      tiktok:["9:16","1080","30"],
+      instagram:["9:16","1080","30"],
+      youtube:["9:16","1080","30"],
+      facebook:["9:16","1080","30"],
+      youtube_wide:["16:9","1080","30"]
+    };
+    const p=presets[$("platform").value];
+    if(p){
+      $("ratio").value=p[0];
+      $("resolution").value=p[1];
+      $("fps").value=p[2];
+    }
+  }
+  applySettings();
+});
+
+$("platform").addEventListener("change",()=>{
+  if($("exportMode").value==="automatic"){
+    $("exportMode").dispatchEvent(new Event("change"));
+  }else{
+    updateExportSummary();
+  }
+});
+
+function loadVoices(){
+  if(!("speechSynthesis" in window)){
+    $("speechStatus").textContent="Unavailable";
+    $("speakButton").disabled=true;
+    $("stopSpeechButton").disabled=true;
+    message($("speechMessage"),
+      "Text-to-speech is not supported by this browser.","error");
+    return;
   }
 
-  function clearMessage() {
-    message.textContent = "";
-    message.className = "message";
+  voices=window.speechSynthesis.getVoices();
+  const select=$("voiceSelect");
+  const previous=select.value;
+  select.replaceChildren();
+
+  const defaultOption=document.createElement("option");
+  defaultOption.value="";
+  defaultOption.textContent="Default available voice";
+  select.appendChild(defaultOption);
+
+  voices.forEach((voice,index)=>{
+    const option=document.createElement("option");
+    option.value=String(index);
+    option.textContent=voice.name+" ("+voice.lang+")"+
+      (voice.default?" — Default":"");
+    select.appendChild(option);
+  });
+
+  if(previous&&voices[Number(previous)])select.value=previous;
+  $("speechStatus").textContent=voices.length?
+    voices.length+" voices":"Browser voices";
+}
+
+if("speechSynthesis" in window){
+  loadVoices();
+  window.speechSynthesis.addEventListener("voiceschanged",loadVoices);
+}else{
+  loadVoices();
+}
+
+$("speakButton").addEventListener("click",()=>{
+  if(!("speechSynthesis" in window))return;
+
+  const text=$("speechText").value.trim();
+  if(!text){
+    message($("speechMessage"),
+      "Enter a narration script first.","error");
+    return;
   }
 
-  function safeYouTubeUrl(raw) {
-    try {
-      const url = new URL(raw);
-      if (url.protocol !== "https:") return null;
-      if (url.hostname !== "youtube.com" &&
-          url.hostname !== "www.youtube.com" &&
-          url.hostname !== "m.youtube.com" &&
-          url.hostname !== "youtu.be" &&
-          url.hostname !== "www.youtube-nocookie.com") return null;
-      return url.href;
-    } catch {
-      return null;
-    }
+  window.speechSynthesis.cancel();
+
+  const utterance=new SpeechSynthesisUtterance(text);
+  const voiceIndex=$("voiceSelect").value;
+
+  if(voiceIndex!==""&&voices[Number(voiceIndex)]){
+    utterance.voice=voices[Number(voiceIndex)];
   }
 
-  function formatDuration(value) {
-    if (value === null || value === undefined || value === "") return "";
-    if (typeof value === "number" && Number.isFinite(value)) {
-      const seconds = Math.max(0, Math.floor(value));
-      const mins = Math.floor(seconds / 60);
-      return mins + ":" + String(seconds % 60).padStart(2, "0");
+  utterance.rate=Number($("speechRate").value)||1;
+  utterance.pitch=Number($("speechPitch").value)||1;
+
+  utterance.onstart=()=>{
+    message($("speechMessage"),"Speaking your script…","success");
+  };
+  utterance.onend=()=>{
+    message($("speechMessage"),"Voice preview finished.","success");
+  };
+  utterance.onerror=event=>{
+    if(event.error==="canceled"||event.error==="interrupted")return;
+    message($("speechMessage"),
+      "The browser could not play this voice. Try another available voice.",
+      "error");
+  };
+
+  window.speechSynthesis.speak(utterance);
+});
+
+$("stopSpeechButton").addEventListener("click",()=>{
+  if("speechSynthesis" in window)window.speechSynthesis.cancel();
+  message($("speechMessage"),"Voice playback stopped.");
+});
+
+document.querySelectorAll("[data-tab]").forEach(button=>{
+  button.addEventListener("click",()=>{
+    const tab=button.dataset.tab;
+    document.querySelectorAll("[data-tab]").forEach(item=>{
+      item.classList.toggle("active",item===button);
+    });
+    $("editorSection").classList.toggle("hidden",tab!=="editor");
+    $("discoverSection").classList.toggle("hidden",tab!=="discover");
+  });
+});
+
+async function checkConnection(){
+  const status=$("connectionStatus");
+  try{
+    const response=await fetch("/api/health");
+    if(!response.ok)throw new Error("Health check failed");
+    const data=await response.json();
+
+    if(data.status==="healthy"||data.status==="online"){
+      status.textContent="● Connected";
+    }else{
+      status.textContent="● Check server";
     }
-    return String(value).slice(0, 20);
+  }catch(error){
+    status.textContent="● Offline";
+  }
+}
+
+function safeYouTubeUrl(value){
+  try{
+    const url=new URL(value);
+    const host=url.hostname.toLowerCase();
+    return url.protocol==="https:"&&
+      ["youtube.com","www.youtube.com","m.youtube.com",
+       "youtu.be","www.youtube-nocookie.com"].includes(host);
+  }catch(error){
+    return false;
+  }
+}
+
+function safeThumbnailUrl(value){
+  try{
+    const url=new URL(value);
+    return url.protocol==="https:"&&
+      (url.hostname==="i.ytimg.com"||
+       url.hostname.endsWith(".ytimg.com"));
+  }catch(error){
+    return false;
+  }
+}
+
+function showDiscoverMessage(text,type=""){
+  message($("discoverMessage"),text,type);
+}
+
+function renderVideos(items,append=false){
+  const grid=$("videoGrid");
+  if(!append)grid.replaceChildren();
+
+  if(!items.length&&!append){
+    const empty=document.createElement("div");
+    empty.className="empty";
+    empty.textContent="No videos found. Try a different search.";
+    grid.appendChild(empty);
+    return;
   }
 
-  function createCard(video) {
-    const url = safeYouTubeUrl(video.url);
-    if (!url) return null;
+  items.forEach(item=>{
+    if(!safeYouTubeUrl(item.url))return;
 
-    const card = document.createElement("article");
-    card.className = "video-card";
+    const card=document.createElement("article");
+    card.className="video-card";
 
-    const thumbLink = document.createElement("a");
-    thumbLink.className = "thumbnail";
-    thumbLink.href = url;
-    thumbLink.target = "_blank";
-    thumbLink.rel = "noopener noreferrer";
-    thumbLink.setAttribute("aria-label", "Open video on YouTube");
+    const thumb=document.createElement("div");
+    thumb.className="thumb";
 
-    const img = document.createElement("img");
-    const thumbnail = typeof video.thumbnail === "string" ? video.thumbnail : "";
-    try {
-      const parsed = new URL(thumbnail);
-      if (parsed.protocol === "https:" &&
-          (parsed.hostname === "i.ytimg.com" ||
-           parsed.hostname.endsWith(".ytimg.com") ||
-           parsed.hostname === "img.youtube.com")) {
-        img.src = parsed.href;
-      } else {
-        img.alt = "Video thumbnail unavailable";
-      }
-    } catch {
-      img.alt = "Video thumbnail unavailable";
-    }
-    img.alt = "Thumbnail for " + (video.title || "YouTube video");
-    img.loading = "lazy";
-    img.referrerPolicy = "no-referrer";
-    thumbLink.appendChild(img);
-
-    const play = document.createElement("span");
-    play.className = "play";
-    play.textContent = "▶";
-    play.setAttribute("aria-hidden", "true");
-    thumbLink.appendChild(play);
-
-    const duration = formatDuration(video.duration);
-    if (duration) {
-      const badge = document.createElement("span");
-      badge.className = "duration";
-      badge.textContent = duration;
-      thumbLink.appendChild(badge);
+    if(item.thumbnail&&safeThumbnailUrl(item.thumbnail)){
+      const img=document.createElement("img");
+      img.src=item.thumbnail;
+      img.alt="";
+      img.loading="lazy";
+      img.referrerPolicy="no-referrer";
+      thumb.appendChild(img);
+    }else{
+      thumb.textContent="▶";
     }
 
-    const info = document.createElement("div");
-    info.className = "video-info";
+    const info=document.createElement("div");
+    info.className="video-info";
 
-    const title = document.createElement("a");
-    title.className = "video-title";
-    title.href = url;
-    title.target = "_blank";
-    title.rel = "noopener noreferrer";
-    title.textContent = video.title || "Untitled video";
+    const title=document.createElement("div");
+    title.className="video-title";
+    title.textContent=item.title||"Untitled video";
 
-    const meta = document.createElement("div");
-    meta.className = "video-meta";
-    const parts = [];
-    if (video.channel) parts.push(String(video.channel));
-    if (video.views !== null && video.views !== undefined) {
-      parts.push(String(video.views) + " views");
-    }
-    if (video.published) {
-      const date = new Date(video.published);
-      if (!Number.isNaN(date.getTime())) {
-        parts.push(date.toLocaleDateString());
-      }
-    }
-    meta.textContent = parts.join(" · ") || "YouTube source";
+    const meta=document.createElement("div");
+    meta.className="video-meta";
+    meta.textContent=[
+      item.channel||"YouTube",
+      item.views||"",
+      item.uploadedAt||""
+    ].filter(Boolean).join(" · ");
 
-    const actions = document.createElement("div");
-    actions.className = "card-actions";
+    const link=document.createElement("a");
+    link.href=item.url;
+    link.target="_blank";
+    link.rel="noopener noreferrer";
+    link.textContent="Watch on YouTube ↗";
 
-    const openLink = document.createElement("a");
-    openLink.className = "btn btn-primary";
-    openLink.href = url;
-    openLink.target = "_blank";
-    openLink.rel = "noopener noreferrer";
-    openLink.textContent = "Watch on YouTube";
+    info.append(title,meta,link);
+    card.append(thumb,info);
+    grid.appendChild(card);
+  });
 
-    actions.appendChild(openLink);
-    info.append(title, meta, actions);
-    card.append(thumbLink, info);
-    return card;
+  $("videoCount").textContent=String(grid.querySelectorAll(".video-card").length);
+}
+
+async function searchVideos(loadMore=false){
+  const topic=$("topic").value.trim();
+  if(!topic){
+    showDiscoverMessage("Enter a search topic.","error");
+    return;
   }
 
-  function renderVideos(videos, append = false) {
-    if (!append) grid.replaceChildren();
+  if(loadMore&&!continuationToken)return;
 
-    let added = 0;
-    for (const video of videos) {
-      const card = createCard(video);
-      if (card) {
-        grid.appendChild(card);
-        added++;
-      }
-    }
+  const currentSearch=++searchId;
+  const button=$("searchButton");
+  const moreButton=$("moreButton");
 
-    if (!append && added === 0) {
-      const empty = document.createElement("div");
-      empty.className = "empty";
-      empty.textContent = "No displayable videos were returned. Try another search.";
-      grid.appendChild(empty);
-    }
+  button.disabled=true;
+  moreButton.disabled=true;
+  showDiscoverMessage("Searching for videos…");
 
-    totalShown = append ? totalShown + added : added;
-    videoCount.textContent = String(totalShown);
-    resultLabel.textContent = totalShown + (totalShown === 1 ? " video" : " videos");
+  if(!loadMore){
+    continuationToken=null;
+    totalShown=0;
+    $("resultLabel").textContent="Searching…";
+    $("videoGrid").replaceChildren();
   }
 
-  async function checkConnection() {
-    try {
-      const response = await fetch(API_BASE + "/api/health");
-      if (!response.ok) throw new Error("Health check failed");
-      const data = await response.json();
-      connectionStatus.textContent =
-        data.status === "healthy" ? "Backend connected" : "Backend responding";
-    } catch {
-      connectionStatus.textContent = "Connection unavailable";
-    }
-  }
-
-  async function searchVideos(append = false) {
-    const topic = document.getElementById("topic").value.trim();
-    if (!topic) {
-      showMessage("Enter a topic before searching.", "error");
-      return;
-    }
-
-    const searchId = append ? currentSearchId : ++currentSearchId;
-    const params = new URLSearchParams({
+  try{
+    const params=new URLSearchParams({
       topic,
-      sortBy: document.getElementById("sortBy").value,
-      uploadDate: document.getElementById("uploadDate").value,
-      type: "videos",
-      region: "NG"
+      sortBy:$("sortBy").value,
+      uploadDate:$("uploadDate").value,
+      type:"videos",
+      region:"NG"
     });
 
-    if (append && continuationToken) {
-      params.set("continuationToken", continuationToken);
+    if(loadMore&&continuationToken){
+      params.set("continuationToken",continuationToken);
     }
 
-    searchButton.disabled = true;
-    moreButton.disabled = true;
-    if (!append) {
-      continuationToken = null;
-      totalShown = 0;
-      videoCount.textContent = "…";
-      grid.replaceChildren();
+    const response=await fetch("/api/discover?"+params.toString());
+
+    if(!response.ok){
+      let detail="Video search failed.";
+      try{
+        const errorData=await response.json();
+        if(errorData.error)detail=errorData.error;
+      }catch(error){}
+      throw new Error(detail);
     }
-    clearMessage();
-    showMessage(append ? "Loading more videos…" : "Searching YouTube…");
 
-    try {
-      const response = await fetch(API_BASE + "/api/discover?" + params.toString(), {
-        method: "GET",
-        headers: { "Accept": "application/json" },
-        cache: "no-store"
-      });
+    const data=await response.json();
+    if(currentSearch!==searchId)return;
 
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.error || data.message || "Search failed (" + response.status + ").");
-      }
-      if (searchId !== currentSearchId) return;
+    const items=Array.isArray(data.results)?data.results:[];
+    renderVideos(items,loadMore);
+    totalShown=$("videoGrid").querySelectorAll(".video-card").length;
+    continuationToken=data.continuationToken||null;
 
-      const videos = Array.isArray(data.results) ? data.results : [];
-      continuationToken = data.continuationToken || null;
-      renderVideos(videos, append);
+    $("resultLabel").textContent=totalShown+" videos displayed";
+    moreButton.hidden=!continuationToken;
 
-      if (videos.length) {
-        showMessage("Found " + videos.length + " results in this response. Check each source and its usage rights before repurposing.", "success");
-      } else {
-        showMessage("No videos returned for this search. Try a different topic or date range.");
-      }
-
-      moreButton.hidden = !continuationToken;
-    } catch (error) {
-      if (searchId !== currentSearchId) return;
-      showMessage("Could not load videos. " + (error.message || "Please try again later."), "error");
-      if (!append) {
-        const empty = document.createElement("div");
-        empty.className = "empty";
-        empty.textContent = "Your search could not be completed. Check the backend connection and try again.";
-        grid.replaceChildren(empty);
-      }
-      moreButton.hidden = true;
-    } finally {
-      if (searchId === currentSearchId) {
-        searchButton.disabled = false;
-        moreButton.disabled = false;
-      }
+    showDiscoverMessage(
+      items.length?"Search complete. Open a result to watch it.":"No matching videos found.",
+      items.length?"success":""
+    );
+  }catch(error){
+    if(currentSearch!==searchId)return;
+    showDiscoverMessage(error.message||"Search failed. Please try again.","error");
+    $("resultLabel").textContent="Search could not be completed.";
+  }finally{
+    if(currentSearch===searchId){
+      button.disabled=false;
+      moreButton.disabled=false;
     }
   }
+}
 
-  document.getElementById("searchForm").addEventListener("submit", event => {
-    event.preventDefault();
-    searchVideos(false);
-  });
-
-  moreButton.addEventListener("click", () => {
-    if (continuationToken) searchVideos(true);
-  });
-
-  checkConnection();
+$("searchForm").addEventListener("submit",event=>{
+  event.preventDefault();
   searchVideos(false);
+});
+
+$("moreButton").addEventListener("click",()=>{
+  searchVideos(true);
+});
+
+window.addEventListener("beforeunload",()=>{
+  if(localVideoUrl)URL.revokeObjectURL(localVideoUrl);
+  if("speechSynthesis" in window)window.speechSynthesis.cancel();
+});
+
+applySettings();
+checkConnection();
 })();
 </script>
 </body>
