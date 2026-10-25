@@ -3,10 +3,12 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const crypto = require("crypto");
+const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const PUBLIC_DIR = path.join(__dirname, "public");
 
 app.use(cors());
 app.use(express.json({ limit: "32kb" }));
@@ -83,11 +85,19 @@ function validUuid(value) {
   );
 }
 
+// Serve the ClipForge dashboard files.
+app.use(express.static(PUBLIC_DIR, {
+  index: false
+}));
+
+// Opening the main website now loads the dashboard, not JSON.
 app.get("/", (req, res) => {
-  res.json({
-    name: "ClipForge AI",
-    status: "online",
-    version: "1.3.0"
+  res.sendFile(path.join(PUBLIC_DIR, "index.html"), error => {
+    if (error && !res.headersSent) {
+      res.status(500).send(
+        "ClipForge dashboard could not be loaded. Check that public/index.html exists."
+      );
+    }
   });
 });
 
@@ -157,271 +167,284 @@ app.get("/api", (req, res) => {
   });
 });
 
-// Search public YouTube results through ScrapeCreators.
-// Search results are candidates, not permission to repost.
-app.get(
-  "/api/discover",
-  requireApiKey,
-  async (req, res) => {
-    if (!scrapeCreatorsKey) {
-      return res.status(503).json({
-        error: "Video discovery is not configured on the server."
-      });
-    }
+// Public read-only discovery endpoint for the dashboard.
+// Provider credentials stay on the server and are never sent to browsers.
+// Keep write and database-management endpoints protected by requireApiKey.
+app.get("/api/discover", async (req, res) => {
+  if (!scrapeCreatorsKey) {
+    return res.status(503).json({
+      error: "Video discovery is not configured on the server."
+    });
+  }
 
-    const topic =
-      typeof req.query.topic === "string"
-        ? req.query.topic.trim()
+  const topic =
+    typeof req.query.topic === "string"
+      ? req.query.topic.trim()
+      : "";
+
+  const sortBy =
+    typeof req.query.sortBy === "string"
+      ? req.query.sortBy
+      : "relevance";
+
+  const uploadDate =
+    typeof req.query.uploadDate === "string"
+      ? req.query.uploadDate
+      : "this_week";
+
+  const type =
+    typeof req.query.type === "string"
+      ? req.query.type
+      : "videos";
+
+  const region =
+    typeof req.query.region === "string"
+      ? req.query.region.toUpperCase()
+      : "NG";
+
+  const allowedSorts = ["relevance", "popular"];
+  const allowedDates = [
+    "today",
+    "this_week",
+    "this_month",
+    "this_year"
+  ];
+  const allowedTypes = ["videos", "shorts"];
+
+  if (!topic || topic.length > 150) {
+    return res.status(400).json({
+      error: "Provide a topic between 1 and 150 characters."
+    });
+  }
+
+  if (!allowedSorts.includes(sortBy)) {
+    return res.status(400).json({
+      error: "sortBy must be relevance or popular."
+    });
+  }
+
+  if (!allowedDates.includes(uploadDate)) {
+    return res.status(400).json({
+      error: "uploadDate must be today, this_week, this_month, or this_year."
+    });
+  }
+
+  if (!allowedTypes.includes(type)) {
+    return res.status(400).json({
+      error: "type must be videos or shorts."
+    });
+  }
+
+  if (!/^[A-Z]{2}$/.test(region)) {
+    return res.status(400).json({
+      error: "region must be a two-letter country code."
+    });
+  }
+
+  try {
+    const searchUrl = new URL(
+      "https://api.scrapecreators.com/v1/youtube/search"
+    );
+
+    searchUrl.searchParams.set("query", topic);
+    searchUrl.searchParams.set("sortBy", sortBy);
+    searchUrl.searchParams.set("uploadDate", uploadDate);
+    searchUrl.searchParams.set("type", type);
+    searchUrl.searchParams.set("region", region);
+
+    // Forward pagination tokens when the provider supplies them.
+    const continuationToken =
+      typeof req.query.continuationToken === "string"
+        ? req.query.continuationToken
         : "";
 
-    const sortBy =
-      typeof req.query.sortBy === "string"
-        ? req.query.sortBy
-        : "relevance";
-
-    const uploadDate =
-      typeof req.query.uploadDate === "string"
-        ? req.query.uploadDate
-        : "this_week";
-
-    const type =
-      typeof req.query.type === "string"
-        ? req.query.type
-        : "videos";
-
-    const region =
-      typeof req.query.region === "string"
-        ? req.query.region.toUpperCase()
-        : "NG";
-
-    const allowedSorts = ["relevance", "popular"];
-    const allowedDates = [
-      "today",
-      "this_week",
-      "this_month",
-      "this_year"
-    ];
-    const allowedTypes = ["videos", "shorts"];
-    
-    if (!topic || topic.length > 150) {
-      return res.status(400).json({
-        error: "Provide a topic between 1 and 150 characters."
-      });
+    if (continuationToken && continuationToken.length <= 2000) {
+      searchUrl.searchParams.set(
+        "continuationToken",
+        continuationToken
+      );
     }
 
-    if (!allowedSorts.includes(sortBy)) {
-      return res.status(400).json({
-        error: "sortBy must be relevance or popular."
-      });
-    }
+    const response = await fetch(searchUrl, {
+      method: "GET",
+      headers: {
+        "x-api-key": scrapeCreatorsKey,
+        "accept": "application/json"
+      },
+      signal: AbortSignal.timeout(25000)
+    });
 
-    if (!allowedDates.includes(uploadDate)) {
-      return res.status(400).json({
-        error: "uploadDate must be today, this_week, this_month, or this_year."
-      });
-    }
+    const rawText = await response.text();
 
-    if (!allowedTypes.includes(type)) {
-      return res.status(400).json({
-        error: "type must be videos or shorts."
-      });
-    }
-
-    if (!/^[A-Z]{2}$/.test(region)) {
-      return res.status(400).json({
-        error: "region must be a two-letter country code."
-      });
-    }
+    let payload;
 
     try {
-      const searchUrl = new URL(
-        "https://api.scrapecreators.com/v1/youtube/search"
+      payload = JSON.parse(rawText);
+    } catch {
+      payload = null;
+    }
+
+    if (!response.ok) {
+      console.error(
+        "YouTube discovery provider returned HTTP",
+        response.status
       );
 
-      searchUrl.searchParams.set("query", topic);
-      searchUrl.searchParams.set("sortBy", sortBy);
-      searchUrl.searchParams.set("uploadDate", uploadDate);
-      searchUrl.searchParams.set("type", type);
-      searchUrl.searchParams.set("region", region);
-
-      const response = await fetch(searchUrl, {
-        method: "GET",
-        headers: {
-          "x-api-key": scrapeCreatorsKey,
-          "accept": "application/json"
-        },
-        signal: AbortSignal.timeout(25000)
-      });
-
-      const rawText = await response.text();
-
-      let payload;
-
-      try {
-        payload = JSON.parse(rawText);
-      } catch {
-        payload = null;
-      }
-
-      if (!response.ok) {
-        console.error(
-          "YouTube discovery provider returned HTTP",
-          response.status
-        );
-
-        if (response.status === 401) {
-          return res.status(502).json({
-            error: "The discovery provider rejected its server credentials. Check the Render environment variable."
-          });
-        }
-
-        if (response.status === 402) {
-          return res.status(502).json({
-            error: "The discovery provider reports insufficient credits."
-          });
-        }
-
-        if (response.status === 400) {
-          return res.status(502).json({
-            error: "The discovery provider rejected the search parameters."
-          });
-        }
-
+      if (response.status === 401) {
         return res.status(502).json({
-          error: "The discovery provider could not complete the search."
+          error: "The discovery provider rejected its server credentials. Check the Render environment variable."
         });
       }
 
-      if (!payload || typeof payload !== "object") {
+      if (response.status === 402) {
         return res.status(502).json({
-          error: "The discovery provider returned an unexpected response."
+          error: "The discovery provider reports insufficient credits."
         });
       }
 
-      const collections = [
-        ...(Array.isArray(payload.videos) ? payload.videos : []),
-        ...(Array.isArray(payload.shorts) ? payload.shorts : [])
-      ];
-
-      const seen = new Set();
-
-      const results = collections
-        .filter(item => item && typeof item === "object")
-        .map(item => {
-          const videoId =
-            item.id ||
-            item.videoId ||
-            item.video_id ||
-            null;
-
-          const url =
-            item.url ||
-            item.videoUrl ||
-            item.video_url ||
-            (
-              typeof videoId === "string" &&
-              /^[A-Za-z0-9_-]{11}$/.test(videoId)
-                ? `https://www.youtube.com/watch?v=${videoId}`
-                : null
-            );
-
-          return {
-            video_id: videoId,
-            title: item.title || item.name || "Untitled video",
-            url,
-            channel:
-              item.channel?.name ||
-              item.channelName ||
-              item.channel_name ||
-              item.author?.name ||
-              item.author ||
-              null,
-            thumbnail:
-              item.thumbnail ||
-              item.thumbnailUrl ||
-              item.thumbnail_url ||
-              item.thumbnails?.[0]?.url ||
-              null,
-            views:
-              item.viewCount ??
-              item.view_count ??
-              item.views ??
-              null,
-            duration:
-              item.duration ??
-              item.lengthText ??
-              null,
-            published:
-              item.publishedTime ||
-              item.published_time ||
-              item.publishedAt ||
-              item.published_at ||
-              null,
-            content_type:
-              item.type ||
-              (type === "shorts" ? "shorts" : "video")
-          };
-        })
-        .filter(item => {
-          if (!item.url || !validHttpUrl(item.url)) {
-            return false;
-          }
-
-          const parsedUrl = new URL(item.url);
-
-          if (
-            ![
-              "youtube.com",
-              "www.youtube.com",
-              "m.youtube.com",
-              "youtu.be",
-              "www.youtube-nocookie.com"
-            ].includes(parsedUrl.hostname)
-          ) {
-            return false;
-          }
-
-          const identity = item.video_id || item.url;
-
-          if (seen.has(identity)) {
-            return false;
-          }
-
-          seen.add(identity);
-          return true;
-        });
-
-      return res.json({
-        topic,
-        filters: {
-          sortBy,
-          uploadDate,
-          type,
-          region
-        },
-        count: results.length,
-        results,
-        continuationToken:
-          payload.continuationToken ||
-          payload.continuation_token ||
-          null,
-        note: "These are discovery results only. Confirm usage rights before registering or processing a video."
-      });
-    } catch (error) {
-      if (error.name === "TimeoutError") {
-        return res.status(504).json({
-          error: "The video discovery request timed out. Please try again."
+      if (response.status === 400) {
+        return res.status(502).json({
+          error: "The discovery provider rejected the search parameters."
         });
       }
-
-      console.error("YouTube discovery failed:", error.message);
 
       return res.status(502).json({
-        error: "Video discovery is temporarily unavailable."
+        error: "The discovery provider could not complete the search."
       });
     }
+
+    if (!payload || typeof payload !== "object") {
+      return res.status(502).json({
+        error: "The discovery provider returned an unexpected response."
+      });
+    }
+
+    const collections = [
+      ...(Array.isArray(payload.videos) ? payload.videos : []),
+      ...(Array.isArray(payload.shorts) ? payload.shorts : [])
+    ];
+
+    const seen = new Set();
+
+    const results = collections
+      .filter(item => item && typeof item === "object")
+      .map(item => {
+        const videoId =
+          item.id ||
+          item.videoId ||
+          item.video_id ||
+          null;
+
+        const url =
+          item.url ||
+          item.videoUrl ||
+          item.video_url ||
+          (
+            typeof videoId === "string" &&
+            /^[A-Za-z0-9_-]{11}$/.test(videoId)
+              ? `https://www.youtube.com/watch?v=${videoId}`
+              : null
+          );
+
+        return {
+          video_id: videoId,
+          title: item.title || item.name || "Untitled video",
+          url,
+          channel:
+            item.channel?.name ||
+            item.channelName ||
+            item.channel_name ||
+            item.author?.name ||
+            item.author ||
+            null,
+          thumbnail:
+            item.thumbnail ||
+            item.thumbnailUrl ||
+            item.thumbnail_url ||
+            item.thumbnails?.[0]?.url ||
+            null,
+          views:
+            item.viewCount ??
+            item.view_count ??
+            item.views ??
+            null,
+          duration:
+            item.duration ??
+            item.lengthText ??
+            null,
+          published:
+            item.publishedTime ||
+            item.published_time ||
+            item.publishedAt ||
+            item.published_at ||
+            null,
+          content_type:
+            item.type ||
+            (type === "shorts" ? "shorts" : "video")
+        };
+      })
+      .filter(item => {
+        if (!item.url || !validHttpUrl(item.url)) {
+          return false;
+        }
+
+        const parsedUrl = new URL(item.url);
+
+        if (
+          ![
+            "youtube.com",
+            "www.youtube.com",
+            "m.youtube.com",
+            "youtu.be",
+            "www.youtube-nocookie.com"
+          ].includes(parsedUrl.hostname)
+        ) {
+          return false;
+        }
+
+        const identity = item.video_id || item.url;
+
+        if (seen.has(identity)) {
+          return false;
+        }
+
+        seen.add(identity);
+        return true;
+      });
+
+    return res.json({
+      topic,
+      filters: {
+        sortBy,
+        uploadDate,
+        type,
+        region
+      },
+      count: results.length,
+      results,
+      continuationToken:
+        payload.continuationToken ||
+        payload.continuation_token ||
+        null,
+      note: "These are discovery results only. Confirm usage rights before registering or processing a video."
+    });
+  } catch (error) {
+    if (
+      error.name === "TimeoutError" ||
+      error.name === "AbortError"
+    ) {
+      return res.status(504).json({
+        error: "The video discovery request timed out. Please try again."
+      });
+    }
+
+    console.error("YouTube discovery failed:", error.message);
+
+    return res.status(502).json({
+      error: "Video discovery is temporarily unavailable."
+    });
   }
-);
+});
 
 // Register an authorized video source.
 app.post(
@@ -713,4 +736,3 @@ app.get(
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`ClipForge AI running on port ${PORT}`);
 });
-        
