@@ -322,15 +322,16 @@ app.get(
 
 // -------------------- API INFORMATION --------------------
 
+
 app.get("/api", (req, res) => {
   res.json({
     name: "ClipForge AI API",
-    version: "1.6.0",
+    version: "1.7.0",
     features: {
       youtubeDiscovery: true,
       popularitySorting: true,
       localRecentRanking: true,
-      videoRendering: false,
+      videoRendering: true,
       automaticPublishing: false
     },
     endpoints: [
@@ -342,10 +343,13 @@ app.get("/api", (req, res) => {
       "GET /api/sources (sign-in required)",
       "POST /api/jobs (sign-in required)",
       "GET /api/jobs (sign-in required)",
-      "GET /api/jobs/:id (sign-in required)"
+      "GET /api/jobs/:id (sign-in required)",
+      "POST /api/render/:sourceId (sign-in required)",
+      "GET /api/clips/:id/download (sign-in required)"
     ]
   });
 });
+
 
 // -------------------- YOUTUBE DISCOVERY --------------------
 
