@@ -6,7 +6,9 @@ const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
 const { execFile } = require("child_process");
 const { promisify } = require("util");
-
+const fs = require("fs");
+const { randomUUID } = require("crypto");
+const videoProcessor = require("./videoProcessor");
 const execFileAsync = promisify(execFile);
 
 const app = express();
@@ -975,6 +977,269 @@ app.get("/api/jobs/:id", requireUser, async (req, res) => {
   }
 });
 
+/* -------------------- REAL VIDEO RENDERING -------------------- */
+
+// Upload and render an authorized video for the signed-in user.
+// The source must already exist in the user's content_sources table.
+app.post(
+  "/api/render/:sourceId",
+  requireUser,
+  express.raw({
+    type: ["video/mp4", "video/quicktime", "video/webm"],
+    limit: "100mb"
+  }),
+  async (req, res) => {
+    const sourceId = req.params.sourceId;
+
+    if (!validUuid(sourceId)) {
+      return res.status(400).json({
+        error: "A valid source ID is required."
+      });
+    }
+
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+      return res.status(400).json({
+        error: "Send a video file using video/mp4, video/quicktime, or video/webm."
+      });
+    }
+
+    const startSeconds = Number(req.query.startSeconds ?? 0);
+    const durationSeconds = Number(req.query.durationSeconds ?? 30);
+    const aspectRatio = String(req.query.aspectRatio ?? "9:16");
+
+    const allowedRatios = ["9:16", "16:9", "1:1", "4:5"];
+
+    if (
+      !Number.isFinite(startSeconds) ||
+      startSeconds < 0 ||
+      !Number.isFinite(durationSeconds) ||
+      durationSeconds <= 0 ||
+      durationSeconds > 180 ||
+      !allowedRatios.includes(aspectRatio)
+    ) {
+      return res.status(400).json({
+        error: "Invalid trim settings. Duration must be between 1 and 180 seconds."
+      });
+    }
+
+    let inputPath;
+    let jobId;
+
+    try {
+      const { data: source, error: sourceError } = await supabase
+        .from("content_sources")
+        .select("id, title, permission_confirmed, status")
+        .eq("id", sourceId)
+        .eq("user_id", req.user.id)
+        .maybeSingle();
+
+      if (sourceError) {
+        console.error("Render source lookup failed:", sourceError.message);
+
+        return res.status(500).json({
+          error: "Could not verify the video source."
+        });
+      }
+
+      if (!source || source.status !== "active") {
+        return res.status(404).json({
+          error: "Active source not found for your account."
+        });
+      }
+
+      if (!source.permission_confirmed) {
+        return res.status(403).json({
+          error: "You must have permission to process this video."
+        });
+      }
+
+      videoProcessor.ensureDirectories();
+
+      const uploadId = randomUUID();
+      const contentType = req.get("content-type")?.split(";")[0].trim();
+
+      const extension = {
+        "video/mp4": ".mp4",
+        "video/quicktime": ".mov",
+        "video/webm": ".webm"
+      }[contentType];
+
+      if (!extension) {
+        return res.status(415).json({
+          error: "Unsupported video format."
+        });
+      }
+
+      inputPath = path.join(
+        videoProcessor.UPLOAD_DIR,
+        `${uploadId}${extension}`
+      );
+
+      await fs.promises.writeFile(inputPath, req.body, {
+        flag: "wx",
+        mode: 0o600
+      });
+
+      const { data: job, error: jobError } = await supabase
+        .from("clipping_jobs")
+        .insert({
+          user_id: req.user.id,
+          source_id: source.id,
+          target_platforms: ["tiktok"],
+          status: "processing"
+        })
+        .select("id")
+        .single();
+
+      if (jobError) {
+        console.error("Render job creation failed:", jobError.message);
+
+        return res.status(500).json({
+          error: "Could not create the rendering job."
+        });
+      }
+
+      jobId = job.id;
+
+      const rendered = await videoProcessor.renderClip({
+        inputPath,
+        startSeconds,
+        durationSeconds,
+        aspectRatio
+      });
+
+      const { data: clip, error: clipError } = await supabase
+        .from("clips")
+        .insert({
+          id: rendered.id,
+          user_id: req.user.id,
+          job_id: jobId,
+          title: source.title || "Generated clip",
+          start_seconds: startSeconds,
+          end_seconds: startSeconds + durationSeconds,
+          video_url: `/api/clips/${rendered.id}/download`,
+          caption_text: "",
+          status: "ready"
+        })
+        .select(
+          "id, job_id, title, start_seconds, end_seconds, video_url, status, created_at"
+        )
+        .single();
+
+      if (clipError) {
+        await fs.promises.rm(rendered.outputPath, { force: true });
+
+        throw new Error("Could not save the generated clip record.");
+      }
+
+      await supabase
+        .from("clipping_jobs")
+        .update({ status: "completed", error_message: null })
+        .eq("id", jobId)
+        .eq("user_id", req.user.id);
+
+      return res.status(201).json({
+        message: "Video rendered successfully.",
+        job_id: jobId,
+        clip,
+        download_url: clip.video_url,
+        note: "The generated MP4 is stored on the server's temporary filesystem. Download it before the service restarts or its temporary files are lost."
+      });
+    } catch (error) {
+      console.error("Video rendering failed:", error.message);
+
+      if (jobId) {
+        await supabase
+          .from("clipping_jobs")
+          .update({
+            status: "failed",
+            error_message: "Video rendering failed."
+          })
+          .eq("id", jobId)
+          .eq("user_id", req.user.id);
+      }
+
+      return res.status(500).json({
+        error: "Video rendering failed. Check the server logs."
+      });
+    } finally {
+      if (inputPath) {
+        await fs.promises.rm(inputPath, { force: true }).catch(() => {});
+      }
+    }
+  }
+);
+
+// Download only a clip belonging to the authenticated user.
+app.get(
+  "/api/clips/:id/download",
+  requireUser,
+  async (req, res) => {
+    const clipId = req.params.id;
+
+    if (!validUuid(clipId)) {
+      return res.status(400).json({
+        error: "Invalid clip ID."
+      });
+    }
+
+    try {
+      const { data: clip, error } = await supabase
+        .from("clips")
+        .select("id, title, video_url, status")
+        .eq("id", clipId)
+        .eq("user_id", req.user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Clip download lookup failed:", error.message);
+
+        return res.status(500).json({
+          error: "Could not retrieve the clip."
+        });
+      }
+
+      if (
+        !clip ||
+        clip.status !== "ready" ||
+        clip.video_url !== `/api/clips/${clipId}/download`
+      ) {
+        return res.status(404).json({
+          error: "Ready clip not found for your account."
+        });
+      }
+
+      const outputPath = path.join(
+        videoProcessor.OUTPUT_DIR,
+        `${clipId}.mp4`
+      );
+
+      if (!fs.existsSync(outputPath)) {
+        return res.status(410).json({
+          error: "This temporary video file is no longer available. Render the clip again."
+        });
+      }
+
+      res.setHeader("Content-Type", "video/mp4");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="clip-${clipId}.mp4"`
+      );
+      res.setHeader("X-Content-Type-Options", "nosniff");
+
+      return res.sendFile(outputPath);
+    } catch (error) {
+      console.error("Clip download failed:", error.message);
+
+      if (!res.headersSent) {
+        return res.status(500).json({
+          error: "Could not download the clip."
+        });
+      }
+    }
+  }
+);
+            
 // -------------------- START SERVER --------------------
 
 app.listen(PORT, "0.0.0.0", () => {
