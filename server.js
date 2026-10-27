@@ -350,6 +350,119 @@ app.get("/api", (req, res) => {
   });
 });
 
+ // -------------------- AUTHENTICATION --------------------
+
+app.post("/api/auth/signup", async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({
+      error: "Authentication is not configured."
+    });
+  }
+
+  const email =
+    typeof req.body?.email === "string"
+      ? req.body.email.trim().toLowerCase()
+      : "";
+
+  const password =
+    typeof req.body?.password === "string"
+      ? req.body.password
+      : "";
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({
+      error: "Enter a valid email address."
+    });
+  }
+
+  if (password.length < 8 || password.length > 128) {
+    return res.status(400).json({
+      error: "Password must contain 8 to 128 characters."
+    });
+  }
+
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password
+    });
+
+    if (error) {
+      return res.status(400).json({
+        error: error.message
+      });
+    }
+
+    return res.status(201).json({
+      message: data.session
+        ? "Account created. You can now continue."
+        : "Account created. Check your email to confirm it before signing in.",
+      confirmationRequired: !data.session
+    });
+  } catch (error) {
+    console.error("Sign-up failed:", error.message);
+
+    return res.status(500).json({
+      error: "Could not create your account."
+    });
+  }
+});
+
+app.post("/api/auth/signin", async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({
+      error: "Authentication is not configured."
+    });
+  }
+
+  const email =
+    typeof req.body?.email === "string"
+      ? req.body.email.trim().toLowerCase()
+      : "";
+
+  const password =
+    typeof req.body?.password === "string"
+      ? req.body.password
+      : "";
+
+  if (!email || !password) {
+    return res.status(400).json({
+      error: "Enter your email and password."
+    });
+  }
+
+  try {
+    const { data, error } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+    if (error || !data.session) {
+      return res.status(401).json({
+        error: "Sign-in failed. Check your details and confirm your email if required."
+      });
+    }
+
+    return res.json({
+      message: "Signed in successfully.",
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+      expires_at: data.session.expires_at,
+      user: {
+        id: data.user.id,
+        email: data.user.email
+      }
+    });
+  } catch (error) {
+    console.error("Sign-in failed:", error.message);
+
+    return res.status(500).json({
+      error: "Could not sign in."
+    });
+  }
+});
+  
 
 // -------------------- YOUTUBE DISCOVERY --------------------
 
