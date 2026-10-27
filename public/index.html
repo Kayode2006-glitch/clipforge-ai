@@ -78,6 +78,34 @@ input[type=range]{padding:0;accent-color:var(--accent)}
 
 <main>
   <div class="eyebrow">Discover · Create · Grow</div>
+  
+<div class="panel" id="authPanel">
+  <h2>ClipForge Account</h2>
+  <p class="muted">Sign in to render and download your clips.</p>
+
+  <div class="field">
+    <label for="authEmail">Email address</label>
+    <input id="authEmail" type="email" autocomplete="email"
+      placeholder="Your email address">
+  </div>
+
+  <div class="field" style="margin-top:12px">
+    <label for="authPassword">Password</label>
+    <input id="authPassword" type="password"
+      autocomplete="current-password" placeholder="At least 8 characters">
+  </div>
+
+  <div class="actions" style="margin-top:14px">
+    <button class="btn btn-primary" id="signInButton" type="button">Sign in</button>
+    <button class="btn" id="signUpButton" type="button">Create account</button>
+    <button class="btn" id="signOutButton" type="button" hidden>Sign out</button>
+  </div>
+
+  <div id="authMessage" class="message show" role="status">
+    Sign in or create an account to continue.
+  </div>
+</div>
+  
   <h1>Your video studio.</h1>
   <p class="intro">Discover inspiration, preview your own footage, prepare captions and voiceovers, and build toward a complete AI-powered editing workflow.</p>
 
